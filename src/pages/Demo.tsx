@@ -25,20 +25,24 @@ const Demo: React.FC = () => {
   // Check if user is logged in and fetch their vehicle
   useEffect(() => {
     const fetchUserVehicle = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        const { data: vehicles } = await supabase
-          .from('vehicles')
-          .select('make, model')
-          .eq('user_id', session.user.id)
-          .limit(1);
-        
-        if (vehicles && vehicles.length > 0) {
-          setCarMake(vehicles[0].make);
-          setCarModel(vehicles[0].model);
-          setHasThreeRows(isThreeRowVehicle(vehicles[0].make, vehicles[0].model));
-          setStep(1); // Skip car selection if already have vehicle
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          const { data: vehicles, error } = await supabase
+            .from('vehicles')
+            .select('make, model')
+            .eq('user_id', session.user.id)
+            .limit(1);
+          
+          if (!error && vehicles && vehicles.length > 0) {
+            setCarMake(vehicles[0].make);
+            setCarModel(vehicles[0].model);
+            setHasThreeRows(isThreeRowVehicle(vehicles[0].make, vehicles[0].model));
+            setStep(1); // Skip car selection if already have vehicle
+          }
         }
+      } catch (error) {
+        console.error('Error fetching vehicle:', error);
       }
       setLoadingVehicle(false);
     };
@@ -79,6 +83,21 @@ const Demo: React.FC = () => {
   ];
 
   const steps = getSteps();
+
+  // Show loading state while checking for existing vehicle
+  if (loadingVehicle) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <ChairIcon className="w-10 h-10 text-primary animate-pulse" filled />
+            <Sparkles className="absolute -top-1 -right-1 w-4 h-4 text-accent" />
+          </div>
+          <span className="text-xl font-bold text-foreground">Loading...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background px-4 py-12">
