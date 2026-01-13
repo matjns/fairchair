@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { carMakes, carModels } from '@/data/carData';
-import { isThreeRowVehicle } from '@/data/vehicleRows';
+import { isThreeRowVehicle, getVehicleSeatConfig, getTotalSeats, VehicleSeatConfig } from '@/data/vehicleRows';
 
 const Demo: React.FC = () => {
   const navigate = useNavigate();
@@ -15,6 +15,7 @@ const Demo: React.FC = () => {
   const [carMake, setCarMake] = useState('');
   const [carModel, setCarModel] = useState('');
   const [hasThreeRows, setHasThreeRows] = useState(false);
+  const [seatConfig, setSeatConfig] = useState<VehicleSeatConfig>({ rows: 2, seatsPerRow: [2, 3] });
   const [loadingVehicle, setLoadingVehicle] = useState(true);
   const [preferences, setPreferences] = useState({
     preferredRow: '',
@@ -37,7 +38,9 @@ const Demo: React.FC = () => {
           if (!error && vehicles && vehicles.length > 0) {
             setCarMake(vehicles[0].make);
             setCarModel(vehicles[0].model);
-            setHasThreeRows(isThreeRowVehicle(vehicles[0].make, vehicles[0].model));
+            const config = getVehicleSeatConfig(vehicles[0].make, vehicles[0].model);
+            setHasThreeRows(config.rows === 3);
+            setSeatConfig(config);
             setStep(1); // Skip car selection if already have vehicle
           }
         }
@@ -50,10 +53,12 @@ const Demo: React.FC = () => {
     fetchUserVehicle();
   }, []);
 
-  // Update row count when car changes
+  // Update row count and seat config when car changes
   useEffect(() => {
     if (carMake && carModel) {
-      setHasThreeRows(isThreeRowVehicle(carMake, carModel));
+      const config = getVehicleSeatConfig(carMake, carModel);
+      setHasThreeRows(config.rows === 3);
+      setSeatConfig(config);
     }
   }, [carMake, carModel]);
 
@@ -208,9 +213,9 @@ const Demo: React.FC = () => {
                   <p className="text-sm text-muted-foreground">
                     Your {carMake} {carModel} has{' '}
                     <span className="font-semibold text-foreground">
-                      {hasThreeRows ? '3 rows' : '2 rows'}
+                      {getTotalSeats(carMake, carModel)} seats
                     </span>
-                    {' '}of seating.
+                    {' '}({seatConfig.rows} rows: {seatConfig.seatsPerRow.join('-')} configuration).
                   </p>
                 </div>
               )}
@@ -351,13 +356,13 @@ const Demo: React.FC = () => {
                 <div className="flex items-center justify-center gap-2 mb-4">
                   <Car className="w-5 h-5 text-primary" />
                   <span className="font-semibold text-foreground">
-                    {carMake} {carModel} - Your Ideal Seat
+                    {carMake} {carModel} ({getTotalSeats(carMake, carModel)} seats) - Your Ideal Seat
                   </span>
                 </div>
                 
                 {/* Car seats grid */}
                 <div className="max-w-xs mx-auto">
-                  {/* Front row */}
+                  {/* Front row - always 2 seats */}
                   <div className="grid grid-cols-2 gap-4 mb-4">
                     <div className="p-4 rounded-xl bg-muted flex flex-col items-center">
                       <ChairIcon className="w-8 h-8 text-muted-foreground" />
@@ -378,79 +383,66 @@ const Demo: React.FC = () => {
                   
                   {/* Middle row (for 3-row vehicles) */}
                   {hasThreeRows && (
-                    <div className="grid grid-cols-3 gap-3 mb-4">
-                      <div className={`p-4 rounded-xl flex flex-col items-center ${
-                        preferences.preferredRow === 'middle' && preferences.preferWindow ? 'bg-primary/20 ring-2 ring-primary' : 'bg-muted'
-                      }`}>
-                        <ChairIcon 
-                          className={`w-8 h-8 ${preferences.preferredRow === 'middle' && preferences.preferWindow ? 'text-primary' : 'text-muted-foreground'}`}
-                          filled={preferences.preferredRow === 'middle' && preferences.preferWindow}
-                        />
-                        <span className={`text-xs mt-1 ${preferences.preferredRow === 'middle' && preferences.preferWindow ? 'text-primary font-semibold' : 'text-muted-foreground'}`}>
-                          Left
-                        </span>
-                      </div>
-                      <div className={`p-4 rounded-xl flex flex-col items-center ${
-                        preferences.preferredRow === 'middle' && !preferences.preferWindow ? 'bg-primary/20 ring-2 ring-primary' : 'bg-muted'
-                      }`}>
-                        <ChairIcon 
-                          className={`w-8 h-8 ${preferences.preferredRow === 'middle' && !preferences.preferWindow ? 'text-primary' : 'text-muted-foreground'}`}
-                          filled={preferences.preferredRow === 'middle' && !preferences.preferWindow}
-                        />
-                        <span className={`text-xs mt-1 ${preferences.preferredRow === 'middle' && !preferences.preferWindow ? 'text-primary font-semibold' : 'text-muted-foreground'}`}>
-                          Middle
-                        </span>
-                      </div>
-                      <div className={`p-4 rounded-xl flex flex-col items-center ${
-                        preferences.preferredRow === 'middle' && preferences.preferWindow ? 'bg-primary/20 ring-2 ring-primary' : 'bg-muted'
-                      }`}>
-                        <ChairIcon 
-                          className={`w-8 h-8 ${preferences.preferredRow === 'middle' && preferences.preferWindow ? 'text-primary' : 'text-muted-foreground'}`}
-                          filled={preferences.preferredRow === 'middle' && preferences.preferWindow}
-                        />
-                        <span className={`text-xs mt-1 ${preferences.preferredRow === 'middle' && preferences.preferWindow ? 'text-primary font-semibold' : 'text-muted-foreground'}`}>
-                          Right
-                        </span>
-                      </div>
+                    <div className={`grid gap-3 mb-4`} style={{ gridTemplateColumns: `repeat(${seatConfig.seatsPerRow[1]}, minmax(0, 1fr))` }}>
+                      {Array.from({ length: seatConfig.seatsPerRow[1] }).map((_, index) => {
+                        const isLeft = index === 0;
+                        const isRight = index === seatConfig.seatsPerRow[1] - 1;
+                        const isMiddle = !isLeft && !isRight;
+                        const isHighlighted = preferences.preferredRow === 'middle' && 
+                          ((preferences.preferWindow && (isLeft || isRight)) || (!preferences.preferWindow && isMiddle));
+                        const seatLabel = seatConfig.seatsPerRow[1] === 2 
+                          ? (isLeft ? 'Left' : 'Right')
+                          : (isLeft ? 'Left' : isRight ? 'Right' : 'Middle');
+                        
+                        return (
+                          <div key={index} className={`p-4 rounded-xl flex flex-col items-center ${
+                            isHighlighted ? 'bg-primary/20 ring-2 ring-primary' : 'bg-muted'
+                          }`}>
+                            <ChairIcon 
+                              className={`w-8 h-8 ${isHighlighted ? 'text-primary' : 'text-muted-foreground'}`}
+                              filled={isHighlighted}
+                            />
+                            <span className={`text-xs mt-1 ${isHighlighted ? 'text-primary font-semibold' : 'text-muted-foreground'}`}>
+                              {seatLabel}
+                            </span>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                   
-                  {/* Back row */}
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className={`p-4 rounded-xl flex flex-col items-center ${
-                      preferences.preferredRow === 'back' && preferences.preferWindow ? 'bg-primary/20 ring-2 ring-primary' : 'bg-muted'
-                    }`}>
-                      <ChairIcon 
-                        className={`w-8 h-8 ${preferences.preferredRow === 'back' && preferences.preferWindow ? 'text-primary' : 'text-muted-foreground'}`}
-                        filled={preferences.preferredRow === 'back' && preferences.preferWindow}
-                      />
-                      <span className={`text-xs mt-1 ${preferences.preferredRow === 'back' && preferences.preferWindow ? 'text-primary font-semibold' : 'text-muted-foreground'}`}>
-                        Left
-                      </span>
-                    </div>
-                    <div className={`p-4 rounded-xl flex flex-col items-center ${
-                      preferences.preferredRow === 'back' && !preferences.preferWindow ? 'bg-primary/20 ring-2 ring-primary' : 'bg-muted'
-                    }`}>
-                      <ChairIcon 
-                        className={`w-8 h-8 ${preferences.preferredRow === 'back' && !preferences.preferWindow ? 'text-primary' : 'text-muted-foreground'}`}
-                        filled={preferences.preferredRow === 'back' && !preferences.preferWindow}
-                      />
-                      <span className={`text-xs mt-1 ${preferences.preferredRow === 'back' && !preferences.preferWindow ? 'text-primary font-semibold' : 'text-muted-foreground'}`}>
-                        Middle
-                      </span>
-                    </div>
-                    <div className={`p-4 rounded-xl flex flex-col items-center ${
-                      preferences.preferredRow === 'back' && preferences.preferWindow ? 'bg-primary/20 ring-2 ring-primary' : 'bg-muted'
-                    }`}>
-                      <ChairIcon 
-                        className={`w-8 h-8 ${preferences.preferredRow === 'back' && preferences.preferWindow ? 'text-primary' : 'text-muted-foreground'}`}
-                        filled={preferences.preferredRow === 'back' && preferences.preferWindow}
-                      />
-                      <span className={`text-xs mt-1 ${preferences.preferredRow === 'back' && preferences.preferWindow ? 'text-primary font-semibold' : 'text-muted-foreground'}`}>
-                        Right
-                      </span>
-                    </div>
-                  </div>
+                  {/* Back row - dynamic based on seat config */}
+                  {(() => {
+                    const backRowSeats = hasThreeRows ? seatConfig.seatsPerRow[2] : seatConfig.seatsPerRow[1];
+                    return (
+                      <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${backRowSeats}, minmax(0, 1fr))` }}>
+                        {Array.from({ length: backRowSeats }).map((_, index) => {
+                          const isLeft = index === 0;
+                          const isRight = index === backRowSeats - 1;
+                          const isMiddle = !isLeft && !isRight;
+                          const isHighlighted = preferences.preferredRow === 'back' && 
+                            ((preferences.preferWindow && (isLeft || isRight)) || (!preferences.preferWindow && isMiddle));
+                          const seatLabel = backRowSeats === 2 
+                            ? (isLeft ? 'Left' : 'Right')
+                            : (isLeft ? 'Left' : isRight ? 'Right' : 'Middle');
+                          
+                          return (
+                            <div key={index} className={`p-4 rounded-xl flex flex-col items-center ${
+                              isHighlighted ? 'bg-primary/20 ring-2 ring-primary' : 'bg-muted'
+                            }`}>
+                              <ChairIcon 
+                                className={`w-8 h-8 ${isHighlighted ? 'text-primary' : 'text-muted-foreground'}`}
+                                filled={isHighlighted}
+                              />
+                              <span className={`text-xs mt-1 ${isHighlighted ? 'text-primary font-semibold' : 'text-muted-foreground'}`}>
+                                {seatLabel}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
 
