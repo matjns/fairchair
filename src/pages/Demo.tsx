@@ -278,41 +278,96 @@ const Demo: React.FC = () => {
           )}
 
           {/* Step 2: Window preference */}
-          {step === 2 && (
-            <div className="grid grid-cols-2 gap-4">
-              <button
-                onClick={() => setPreferences({ ...preferences, preferWindow: true })}
-                className={`card-interactive p-6 text-center ${
-                  preferences.preferWindow ? 'ring-2 ring-primary' : ''
-                }`}
-              >
-                <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                  <LayoutGrid className="w-8 h-8 text-primary" />
+          {step === 2 && (() => {
+            // Get the number of seats in the selected row
+            const rowIndex = preferences.preferredRow === 'front' ? 0 : 
+                             preferences.preferredRow === 'middle' ? 1 : 
+                             hasThreeRows ? 2 : 1;
+            const seatsInRow = seatConfig.seatsPerRow[rowIndex] || 3;
+            const hasMiddleSeat = seatsInRow >= 3;
+            
+            // If no middle seat in this row, show left/right window preference instead
+            if (!hasMiddleSeat) {
+              return (
+                <div className="space-y-4">
+                  <div className="p-4 bg-muted/50 rounded-xl mb-4">
+                    <p className="text-sm text-muted-foreground text-center">
+                      The {preferences.preferredRow} row has {seatsInRow} seats (both window seats - no middle seat).
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <button
+                      onClick={() => setPreferences({ ...preferences, preferWindow: true })}
+                      className={`card-interactive p-6 text-center ${
+                        preferences.preferWindow ? 'ring-2 ring-primary' : ''
+                      }`}
+                    >
+                      <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                        <LayoutGrid className="w-8 h-8 text-primary" />
+                      </div>
+                      <h3 className="font-bold text-foreground mb-1">Left Side</h3>
+                      <p className="text-sm text-muted-foreground">Behind the driver</p>
+                      {preferences.preferWindow && (
+                        <Check className="w-5 h-5 text-primary mx-auto mt-3" />
+                      )}
+                    </button>
+                    
+                    <button
+                      onClick={() => setPreferences({ ...preferences, preferWindow: false })}
+                      className={`card-interactive p-6 text-center ${
+                        !preferences.preferWindow && preferences.preferredRow ? 'ring-2 ring-primary' : ''
+                      }`}
+                    >
+                      <div className="w-16 h-16 rounded-2xl bg-accent/10 flex items-center justify-center mx-auto mb-4">
+                        <LayoutGrid className="w-8 h-8 text-accent" />
+                      </div>
+                      <h3 className="font-bold text-foreground mb-1">Right Side</h3>
+                      <p className="text-sm text-muted-foreground">Behind the passenger</p>
+                      {!preferences.preferWindow && preferences.preferredRow && (
+                        <Check className="w-5 h-5 text-primary mx-auto mt-3" />
+                      )}
+                    </button>
+                  </div>
                 </div>
-                <h3 className="font-bold text-foreground mb-1">Window Seat</h3>
-                <p className="text-sm text-muted-foreground">Love that view!</p>
-                {preferences.preferWindow && (
-                  <Check className="w-5 h-5 text-primary mx-auto mt-3" />
-                )}
-              </button>
-              
-              <button
-                onClick={() => setPreferences({ ...preferences, preferWindow: false })}
-                className={`card-interactive p-6 text-center ${
-                  !preferences.preferWindow && preferences.preferredRow ? 'ring-2 ring-primary' : ''
-                }`}
-              >
-                <div className="w-16 h-16 rounded-2xl bg-accent/10 flex items-center justify-center mx-auto mb-4">
-                  <User className="w-8 h-8 text-accent" />
-                </div>
-                <h3 className="font-bold text-foreground mb-1">Middle Seat</h3>
-                <p className="text-sm text-muted-foreground">Cozy in the center</p>
-                {!preferences.preferWindow && preferences.preferredRow && (
-                  <Check className="w-5 h-5 text-primary mx-auto mt-3" />
-                )}
-              </button>
-            </div>
-          )}
+              );
+            }
+            
+            return (
+              <div className="grid grid-cols-2 gap-4">
+                <button
+                  onClick={() => setPreferences({ ...preferences, preferWindow: true })}
+                  className={`card-interactive p-6 text-center ${
+                    preferences.preferWindow ? 'ring-2 ring-primary' : ''
+                  }`}
+                >
+                  <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                    <LayoutGrid className="w-8 h-8 text-primary" />
+                  </div>
+                  <h3 className="font-bold text-foreground mb-1">Window Seat</h3>
+                  <p className="text-sm text-muted-foreground">Love that view!</p>
+                  {preferences.preferWindow && (
+                    <Check className="w-5 h-5 text-primary mx-auto mt-3" />
+                  )}
+                </button>
+                
+                <button
+                  onClick={() => setPreferences({ ...preferences, preferWindow: false })}
+                  className={`card-interactive p-6 text-center ${
+                    !preferences.preferWindow && preferences.preferredRow ? 'ring-2 ring-primary' : ''
+                  }`}
+                >
+                  <div className="w-16 h-16 rounded-2xl bg-accent/10 flex items-center justify-center mx-auto mb-4">
+                    <User className="w-8 h-8 text-accent" />
+                  </div>
+                  <h3 className="font-bold text-foreground mb-1">Middle Seat</h3>
+                  <p className="text-sm text-muted-foreground">Cozy in the center</p>
+                  {!preferences.preferWindow && preferences.preferredRow && (
+                    <Check className="w-5 h-5 text-primary mx-auto mt-3" />
+                  )}
+                </button>
+              </div>
+            );
+          })()}
 
           {/* Step 3: Empty middle preference */}
           {step === 3 && (
