@@ -22,7 +22,7 @@ export const Hero: React.FC = () => {
         <CarIcon className="w-32 h-16" />
       </div>
 
-      <div className="relative z-10 max-w-5xl mx-auto text-center">
+      <div className="relative z-30 max-w-5xl mx-auto text-center">
         {/* Logo/Brand */}
         <div className="flex items-center justify-center gap-3 mb-8 animate-fade-in-up">
           <div className="relative">
@@ -53,7 +53,7 @@ export const Hero: React.FC = () => {
 
         {/* CTA Buttons */}
         <div 
-          className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16 animate-fade-in-up"
+          className="relative z-50 flex flex-col sm:flex-row items-center justify-center gap-4 mb-16 animate-fade-in-up"
           style={{ animationDelay: '0.3s' }}
         >
           <Button 
@@ -61,7 +61,7 @@ export const Hero: React.FC = () => {
             variant="hero" 
             size="xl"
             onClick={() => navigate('/auth')}
-            className="group relative z-20"
+            className="group cursor-pointer"
           >
             Get Started Free
             <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
@@ -71,7 +71,7 @@ export const Hero: React.FC = () => {
             variant="outline" 
             size="xl"
             onClick={() => navigate('/demo')}
-            className="relative z-20"
+            className="cursor-pointer"
           >
             See How It Works
           </Button>
