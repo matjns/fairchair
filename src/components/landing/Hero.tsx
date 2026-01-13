@@ -57,18 +57,21 @@ export const Hero: React.FC = () => {
           style={{ animationDelay: '0.3s' }}
         >
           <Button 
+            type="button"
             variant="hero" 
             size="xl"
             onClick={() => navigate('/auth')}
-            className="group"
+            className="group relative z-20"
           >
             Get Started Free
             <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
           </Button>
           <Button 
+            type="button"
             variant="outline" 
             size="xl"
             onClick={() => navigate('/demo')}
+            className="relative z-20"
           >
             See How It Works
           </Button>
