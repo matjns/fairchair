@@ -1,28 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Button } from '@/components/ui/button';
 import { CarIcon } from '@/components/icons/CarIcon';
 import { ChairIcon } from '@/components/icons/ChairIcon';
 import { ArrowRight, Users, Sparkles, Car, UserCircle, ListChecks, Brain, Shuffle, LucideIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
 
 export const Hero: React.FC = () => {
   const navigate = useNavigate();
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-
-  useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setIsLoggedIn(!!session);
-      }
-    );
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setIsLoggedIn(!!session);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
 
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden px-4 py-20">
@@ -76,10 +60,10 @@ export const Hero: React.FC = () => {
             type="button"
             variant="hero" 
             size="xl"
-            onClick={() => navigate(isLoggedIn ? '/demo' : '/auth')}
+            onClick={() => navigate('/auth')}
             className="group cursor-pointer"
           >
-            {isLoggedIn ? 'Go to Dashboard' : 'Get Started Free'}
+            Get Started Free
             <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
           </Button>
           <Button 
