@@ -14,6 +14,108 @@ export type Database = {
   }
   public: {
     Tables: {
+      chore_submissions: {
+        Row: {
+          chore_id: string
+          family_member_id: string
+          id: string
+          reviewed_at: string | null
+          status: string
+          submitted_at: string
+          user_id: string
+        }
+        Insert: {
+          chore_id: string
+          family_member_id: string
+          id?: string
+          reviewed_at?: string | null
+          status?: string
+          submitted_at?: string
+          user_id: string
+        }
+        Update: {
+          chore_id?: string
+          family_member_id?: string
+          id?: string
+          reviewed_at?: string | null
+          status?: string
+          submitted_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chore_submissions_chore_id_fkey"
+            columns: ["chore_id"]
+            isOneToOne: false
+            referencedRelation: "chores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chore_submissions_family_member_id_fkey"
+            columns: ["family_member_id"]
+            isOneToOne: false
+            referencedRelation: "family_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chores: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          points: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          points?: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          points?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      family_members: {
+        Row: {
+          avatar_color: string | null
+          created_at: string
+          id: string
+          is_parent: boolean
+          name: string
+          total_chore_points: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_color?: string | null
+          created_at?: string
+          id?: string
+          is_parent?: boolean
+          name: string
+          total_chore_points?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_color?: string | null
+          created_at?: string
+          id?: string
+          is_parent?: boolean
+          name?: string
+          total_chore_points?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -34,6 +136,74 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      quiz_questions: {
+        Row: {
+          correct_answer: string
+          created_at: string
+          difficulty: string
+          id: string
+          question: string
+          topic: string
+          wrong_answers: string[]
+        }
+        Insert: {
+          correct_answer: string
+          created_at?: string
+          difficulty?: string
+          id?: string
+          question: string
+          topic: string
+          wrong_answers: string[]
+        }
+        Update: {
+          correct_answer?: string
+          created_at?: string
+          difficulty?: string
+          id?: string
+          question?: string
+          topic?: string
+          wrong_answers?: string[]
+        }
+        Relationships: []
+      }
+      seating_history: {
+        Row: {
+          created_at: string
+          family_member_id: string
+          id: string
+          mode: string
+          row_position: string
+          seat_position: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          family_member_id: string
+          id?: string
+          mode: string
+          row_position: string
+          seat_position: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          family_member_id?: string
+          id?: string
+          mode?: string
+          row_position?: string
+          seat_position?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "seating_history_family_member_id_fkey"
+            columns: ["family_member_id"]
+            isOneToOne: false
+            referencedRelation: "family_members"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       vehicles: {
         Row: {
