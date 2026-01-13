@@ -3,10 +3,12 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ChairIcon } from '@/components/icons/ChairIcon';
 import { Sparkles, Mail, Lock, User, ArrowLeft, Loader2, Car } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { carMakes, carModels } from '@/data/carData';
 
 const Auth: React.FC = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -178,34 +180,49 @@ const Auth: React.FC = () => {
                 <div className="space-y-2">
                   <Label htmlFor="carMake">Car Make</Label>
                   <div className="relative">
-                    <Car className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                    <Input
-                      id="carMake"
-                      type="text"
-                      placeholder="e.g. Toyota, Honda, Ford"
-                      value={carMake}
-                      onChange={(e) => setCarMake(e.target.value)}
-                      className="pl-10 h-12"
-                      required
+                    <Car className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground z-10 pointer-events-none" />
+                    <Select 
+                      value={carMake} 
+                      onValueChange={(value) => {
+                        setCarMake(value);
+                        setCarModel(''); // Reset model when make changes
+                      }}
                       disabled={loading}
-                    />
+                    >
+                      <SelectTrigger className="pl-10 h-12">
+                        <SelectValue placeholder="Select car make" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-background border border-border z-50">
+                        {carMakes.map((make) => (
+                          <SelectItem key={make} value={make}>
+                            {make}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="carModel">Car Model</Label>
                   <div className="relative">
-                    <Car className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                    <Input
-                      id="carModel"
-                      type="text"
-                      placeholder="e.g. Camry, Civic, F-150"
-                      value={carModel}
-                      onChange={(e) => setCarModel(e.target.value)}
-                      className="pl-10 h-12"
-                      required
-                      disabled={loading}
-                    />
+                    <Car className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground z-10 pointer-events-none" />
+                    <Select 
+                      value={carModel} 
+                      onValueChange={setCarModel}
+                      disabled={loading || !carMake}
+                    >
+                      <SelectTrigger className="pl-10 h-12">
+                        <SelectValue placeholder={carMake ? "Select car model" : "Select make first"} />
+                      </SelectTrigger>
+                      <SelectContent className="bg-background border border-border z-50">
+                        {carMake && carModels[carMake]?.map((model) => (
+                          <SelectItem key={model} value={model}>
+                            {model}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
               </>
