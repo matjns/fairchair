@@ -11,14 +11,14 @@ export const Hero: React.FC = () => {
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden px-4 py-20">
       {/* Background decoration */}
-      <div className="absolute inset-0 overflow-hidden">
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-20 left-10 w-72 h-72 bg-primary/10 rounded-full blur-3xl" />
         <div className="absolute bottom-20 right-10 w-96 h-96 bg-accent/10 rounded-full blur-3xl" />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-warning/5 rounded-full blur-3xl" />
       </div>
 
       {/* Animated car */}
-      <div className="absolute bottom-32 left-0 animate-car-drive opacity-20">
+      <div className="absolute bottom-32 left-0 animate-car-drive opacity-20 pointer-events-none">
         <CarIcon className="w-32 h-16" />
       </div>
 
@@ -88,17 +88,17 @@ export const Hero: React.FC = () => {
       </div>
 
       {/* Floating seat illustrations */}
-      <div className="absolute top-1/4 left-10 hidden lg:block animate-bounce-gentle" style={{ animationDelay: '0.5s' }}>
+      <div className="absolute top-1/4 left-10 hidden lg:block animate-bounce-gentle pointer-events-none" style={{ animationDelay: '0.5s' }}>
         <div className="card-elevated p-4 rotate-[-12deg]">
           <ChairIcon className="w-10 h-10 text-primary" filled />
         </div>
       </div>
-      <div className="absolute top-1/3 right-16 hidden lg:block animate-bounce-gentle" style={{ animationDelay: '1s' }}>
+      <div className="absolute top-1/3 right-16 hidden lg:block animate-bounce-gentle pointer-events-none" style={{ animationDelay: '1s' }}>
         <div className="card-elevated p-4 rotate-[8deg]">
           <ChairIcon className="w-10 h-10 text-accent" />
         </div>
       </div>
-      <div className="absolute bottom-1/3 right-24 hidden lg:block animate-bounce-gentle" style={{ animationDelay: '1.5s' }}>
+      <div className="absolute bottom-1/3 right-24 hidden lg:block animate-bounce-gentle pointer-events-none" style={{ animationDelay: '1.5s' }}>
         <div className="card-elevated p-4 rotate-[-5deg]">
           <Users className="w-10 h-10 text-success" />
         </div>
