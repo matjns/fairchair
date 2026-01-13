@@ -62,30 +62,52 @@ const Demo: React.FC = () => {
     }
   }, [carMake, carModel]);
 
-  const getSteps = () => [
-    {
-      title: 'Select Your Vehicle',
-      subtitle: 'Tell us about your car so we can show the right seating options.',
-    },
-    {
-      title: 'Choose Your Preferred Row',
-      subtitle: hasThreeRows 
-        ? 'Your vehicle has 3 rows. Which row do you prefer?' 
-        : 'Do you prefer sitting in the front or back?',
-    },
-    {
-      title: 'Window or Middle?',
-      subtitle: 'Which side seat do you prefer?',
-    },
-    {
-      title: 'Empty Middle Seat?',
-      subtitle: 'If the middle seat is empty, would you prefer sitting next to it?',
-    },
-    {
+  // Check if selected row has a middle seat
+  const getSeatsInSelectedRow = () => {
+    if (!preferences.preferredRow) return 3;
+    const rowIndex = preferences.preferredRow === 'front' ? 0 : 
+                     preferences.preferredRow === 'middle' ? 1 : 
+                     hasThreeRows ? 2 : 1;
+    return seatConfig.seatsPerRow[rowIndex] || 3;
+  };
+  
+  const selectedRowHasMiddleSeat = getSeatsInSelectedRow() >= 3;
+
+  const getSteps = () => {
+    const baseSteps = [
+      {
+        title: 'Select Your Vehicle',
+        subtitle: 'Tell us about your car so we can show the right seating options.',
+      },
+      {
+        title: 'Choose Your Preferred Row',
+        subtitle: hasThreeRows 
+          ? 'Your vehicle has 3 rows. Which row do you prefer?' 
+          : 'Do you prefer sitting in the front or back?',
+      },
+      {
+        title: selectedRowHasMiddleSeat ? 'Window or Middle?' : 'Left or Right Side?',
+        subtitle: selectedRowHasMiddleSeat 
+          ? 'Which side seat do you prefer?'
+          : `The ${preferences.preferredRow} row has 2 seats. Which side do you prefer?`,
+      },
+    ];
+    
+    // Only add "Empty Middle Seat" step if the selected row has a middle seat
+    if (selectedRowHasMiddleSeat) {
+      baseSteps.push({
+        title: 'Empty Middle Seat?',
+        subtitle: 'If the middle seat is empty, would you prefer sitting next to it?',
+      });
+    }
+    
+    baseSteps.push({
       title: 'Your Preferences Saved!',
       subtitle: 'Here\'s how FairChair will prioritize your seating.',
-    },
-  ];
+    });
+    
+    return baseSteps;
+  };
 
   const steps = getSteps();
 
@@ -369,8 +391,8 @@ const Demo: React.FC = () => {
             );
           })()}
 
-          {/* Step 3: Empty middle preference */}
-          {step === 3 && (
+          {/* Step 3: Empty middle preference - only shown if row has middle seat */}
+          {step === 3 && selectedRowHasMiddleSeat && (
             <div className="grid grid-cols-2 gap-4">
               <button
                 onClick={() => setPreferences({ ...preferences, preferEmptyMiddle: true })}
@@ -403,8 +425,8 @@ const Demo: React.FC = () => {
             </div>
           )}
 
-          {/* Step 4: Summary */}
-          {step === 4 && (
+          {/* Summary Step - last step */}
+          {step === steps.length - 1 && (
             <div className="space-y-6">
               {/* Car visualization */}
               <div className="bg-muted/50 rounded-2xl p-6">
@@ -514,22 +536,29 @@ const Demo: React.FC = () => {
                 </div>
                 <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-xl">
                   <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center">
-                    {preferences.preferWindow ? <LayoutGrid className="w-5 h-5 text-accent" /> : <User className="w-5 h-5 text-accent" />}
+                    <LayoutGrid className="w-5 h-5 text-accent" />
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Seat position</p>
-                    <p className="font-semibold text-foreground">{preferences.preferWindow ? 'Window seat' : 'Middle seat'}</p>
+                    <p className="font-semibold text-foreground">
+                      {selectedRowHasMiddleSeat 
+                        ? (preferences.preferWindow ? 'Window seat' : 'Middle seat')
+                        : (preferences.preferWindow ? 'Left side' : 'Right side')
+                      }
+                    </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-xl">
-                  <div className="w-10 h-10 rounded-full bg-success/10 flex items-center justify-center">
-                    {preferences.preferEmptyMiddle ? <CheckCircle className="w-5 h-5 text-success" /> : <HelpCircle className="w-5 h-5 text-muted-foreground" />}
+                {selectedRowHasMiddleSeat && (
+                  <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-xl">
+                    <div className="w-10 h-10 rounded-full bg-success/10 flex items-center justify-center">
+                      {preferences.preferEmptyMiddle ? <CheckCircle className="w-5 h-5 text-success" /> : <HelpCircle className="w-5 h-5 text-muted-foreground" />}
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Empty middle seat bonus</p>
+                      <p className="font-semibold text-foreground">{preferences.preferEmptyMiddle ? 'Yes, prefer it!' : 'No preference'}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Empty middle seat bonus</p>
-                    <p className="font-semibold text-foreground">{preferences.preferEmptyMiddle ? 'Yes, prefer it!' : 'No preference'}</p>
-                  </div>
-                </div>
+                )}
               </div>
 
               <Button variant="hero" size="lg" className="w-full" asChild>
@@ -543,7 +572,7 @@ const Demo: React.FC = () => {
         </div>
 
         {/* Navigation buttons */}
-        {step < 4 && (
+        {step < steps.length - 1 && (
           <div className="flex items-center justify-between">
             <Button 
               variant="ghost" 
@@ -560,7 +589,7 @@ const Demo: React.FC = () => {
             </Button>
             <Button 
               variant="hero"
-              onClick={() => setStep(Math.min(4, step + 1))}
+              onClick={() => setStep(Math.min(steps.length - 1, step + 1))}
               disabled={(step === 0 && (!carMake || !carModel)) || (step === 1 && !preferences.preferredRow)}
             >
               Next
