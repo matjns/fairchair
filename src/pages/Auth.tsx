@@ -1,21 +1,101 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ChairIcon } from '@/components/icons/ChairIcon';
-import { Sparkles, Mail, Lock, User, ArrowLeft } from 'lucide-react';
+import { Sparkles, Mail, Lock, User, ArrowLeft, Loader2 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 const Auth: React.FC = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+  const { toast } = useToast();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        if (session) {
+          navigate('/');
+        }
+      }
+    );
+
+    // Check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        navigate('/');
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [navigate]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Implement actual auth when backend is connected
-    console.log('Auth submitted:', { isLogin, email, password, name });
+    setLoading(true);
+
+    try {
+      if (isLogin) {
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+
+        if (error) {
+          toast({
+            title: "Login failed",
+            description: error.message,
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Welcome back!",
+            description: "You have successfully logged in.",
+          });
+        }
+      } else {
+        const redirectUrl = `${window.location.origin}/`;
+        
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            emailRedirectTo: redirectUrl,
+            data: {
+              name: name,
+            },
+          },
+        });
+
+        if (error) {
+          toast({
+            title: "Sign up failed",
+            description: error.message,
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Account created!",
+            description: "You have successfully signed up.",
+          });
+        }
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "An unexpected error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -74,6 +154,7 @@ const Auth: React.FC = () => {
                     onChange={(e) => setName(e.target.value)}
                     className="pl-10 h-12"
                     required
+                    disabled={loading}
                   />
                 </div>
               </div>
@@ -91,6 +172,7 @@ const Auth: React.FC = () => {
                   onChange={(e) => setEmail(e.target.value)}
                   className="pl-10 h-12"
                   required
+                  disabled={loading}
                 />
               </div>
             </div>
@@ -108,12 +190,20 @@ const Auth: React.FC = () => {
                   className="pl-10 h-12"
                   required
                   minLength={6}
+                  disabled={loading}
                 />
               </div>
             </div>
 
-            <Button type="submit" variant="hero" size="lg" className="w-full">
-              {isLogin ? 'Log In' : 'Create Account'}
+            <Button type="submit" variant="hero" size="lg" className="w-full" disabled={loading}>
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {isLogin ? 'Logging in...' : 'Creating account...'}
+                </>
+              ) : (
+                isLogin ? 'Log In' : 'Create Account'
+              )}
             </Button>
           </form>
 
@@ -125,6 +215,7 @@ const Auth: React.FC = () => {
                 type="button"
                 onClick={() => setIsLogin(!isLogin)}
                 className="ml-2 text-primary font-semibold hover:underline"
+                disabled={loading}
               >
                 {isLogin ? 'Sign Up' : 'Log In'}
               </button>
