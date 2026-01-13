@@ -462,12 +462,23 @@ const Demo: React.FC = () => {
                   {hasThreeRows && (
                     <div className={`grid gap-3 mb-4`} style={{ gridTemplateColumns: `repeat(${seatConfig.seatsPerRow[1]}, minmax(0, 1fr))` }}>
                       {Array.from({ length: seatConfig.seatsPerRow[1] }).map((_, index) => {
+                        const seatsInRow = seatConfig.seatsPerRow[1];
                         const isLeft = index === 0;
-                        const isRight = index === seatConfig.seatsPerRow[1] - 1;
-                        const isMiddle = !isLeft && !isRight;
-                        const isHighlighted = preferences.preferredRow === 'middle' && 
-                          ((preferences.preferWindow && (isLeft || isRight)) || (!preferences.preferWindow && isMiddle));
-                        const seatLabel = seatConfig.seatsPerRow[1] === 2 
+                        const isRight = index === seatsInRow - 1;
+                        const isMiddle = seatsInRow >= 3 && !isLeft && !isRight;
+                        
+                        // For 2-seat rows: preferWindow=true means left, preferWindow=false means right
+                        // For 3-seat rows: preferWindow=true means left OR right (window), preferWindow=false means middle
+                        let isHighlighted = false;
+                        if (preferences.preferredRow === 'middle') {
+                          if (seatsInRow === 2) {
+                            isHighlighted = (preferences.preferWindow && isLeft) || (!preferences.preferWindow && isRight);
+                          } else {
+                            isHighlighted = (preferences.preferWindow && (isLeft || isRight)) || (!preferences.preferWindow && isMiddle);
+                          }
+                        }
+                        
+                        const seatLabel = seatsInRow === 2 
                           ? (isLeft ? 'Left' : 'Right')
                           : (isLeft ? 'Left' : isRight ? 'Right' : 'Middle');
                         
@@ -496,9 +507,19 @@ const Demo: React.FC = () => {
                         {Array.from({ length: backRowSeats }).map((_, index) => {
                           const isLeft = index === 0;
                           const isRight = index === backRowSeats - 1;
-                          const isMiddle = !isLeft && !isRight;
-                          const isHighlighted = preferences.preferredRow === 'back' && 
-                            ((preferences.preferWindow && (isLeft || isRight)) || (!preferences.preferWindow && isMiddle));
+                          const isMiddle = backRowSeats >= 3 && !isLeft && !isRight;
+                          
+                          // For 2-seat rows: preferWindow=true means left, preferWindow=false means right
+                          // For 3-seat rows: preferWindow=true means left OR right (window), preferWindow=false means middle
+                          let isHighlighted = false;
+                          if (preferences.preferredRow === 'back') {
+                            if (backRowSeats === 2) {
+                              isHighlighted = (preferences.preferWindow && isLeft) || (!preferences.preferWindow && isRight);
+                            } else {
+                              isHighlighted = (preferences.preferWindow && (isLeft || isRight)) || (!preferences.preferWindow && isMiddle);
+                            }
+                          }
+                          
                           const seatLabel = backRowSeats === 2 
                             ? (isLeft ? 'Left' : 'Right')
                             : (isLeft ? 'Left' : isRight ? 'Right' : 'Middle');
