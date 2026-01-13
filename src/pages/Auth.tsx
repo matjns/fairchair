@@ -5,16 +5,21 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ChairIcon } from '@/components/icons/ChairIcon';
-import { Sparkles, Mail, Lock, User, ArrowLeft, Loader2, Car } from 'lucide-react';
+import { Sparkles, Mail, Lock, User, ArrowLeft, Loader2, Car, Calendar } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { carMakes, carModels } from '@/data/carData';
+
+// Generate years from current year back to 1990
+const currentYear = new Date().getFullYear();
+const carYears = Array.from({ length: currentYear - 1989 }, (_, i) => currentYear - i);
 
 const Auth: React.FC = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [carYear, setCarYear] = useState('');
   const [carMake, setCarMake] = useState('');
   const [carModel, setCarModel] = useState('');
   const [loading, setLoading] = useState(false);
@@ -90,6 +95,7 @@ const Auth: React.FC = () => {
             .from('vehicles')
             .insert({
               user_id: data.user.id,
+              year: parseInt(carYear),
               make: carMake,
               model: carModel,
             });
@@ -174,6 +180,29 @@ const Auth: React.FC = () => {
                       required
                       disabled={loading}
                     />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="carYear">Car Year</Label>
+                  <div className="relative">
+                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground z-10 pointer-events-none" />
+                    <Select 
+                      value={carYear} 
+                      onValueChange={setCarYear}
+                      disabled={loading}
+                    >
+                      <SelectTrigger className="pl-10 h-12">
+                        <SelectValue placeholder="Select car year" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-background border border-border z-50 max-h-60">
+                        {carYears.map((year) => (
+                          <SelectItem key={year} value={year.toString()}>
+                            {year}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
 
