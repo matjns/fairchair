@@ -30,16 +30,17 @@ const Auth: React.FC = () => {
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        if (session) {
-          navigate('/');
+        // Only redirect on SIGNED_IN event (new login), not on initial load
+        if (event === 'SIGNED_IN' && session) {
+          navigate('/demo');
         }
       }
     );
 
-    // Check for existing session
+    // Check for existing session - redirect to demo/dashboard instead of home
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
-        navigate('/');
+        navigate('/demo');
       }
     });
 
