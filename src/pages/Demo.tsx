@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ChairIcon } from '@/components/icons/ChairIcon';
-import { Sparkles, ArrowLeft, ArrowRight, Check, Car } from 'lucide-react';
+import { Sparkles, ArrowLeft, ArrowRight, Check, Car, Sofa, LayoutGrid, User, CheckCircle, HelpCircle } from 'lucide-react';
 
 const seatPositions = [
   { id: 'driver', label: 'Driver', row: 'front', position: 'left' },
@@ -102,7 +102,7 @@ const Demo: React.FC = () => {
                 }`}
               >
                 <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                  <span className="text-3xl">🚘</span>
+                  <Car className="w-8 h-8 text-primary" />
                 </div>
                 <h3 className="font-bold text-foreground mb-1">Front Row</h3>
                 <p className="text-sm text-muted-foreground">Passenger seat next to driver</p>
@@ -118,7 +118,7 @@ const Demo: React.FC = () => {
                 }`}
               >
                 <div className="w-16 h-16 rounded-2xl bg-accent/10 flex items-center justify-center mx-auto mb-4">
-                  <span className="text-3xl">🛋️</span>
+                  <Sofa className="w-8 h-8 text-accent" />
                 </div>
                 <h3 className="font-bold text-foreground mb-1">Back Row</h3>
                 <p className="text-sm text-muted-foreground">More space in the back</p>
@@ -139,7 +139,7 @@ const Demo: React.FC = () => {
                 }`}
               >
                 <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                  <span className="text-3xl">🪟</span>
+                  <LayoutGrid className="w-8 h-8 text-primary" />
                 </div>
                 <h3 className="font-bold text-foreground mb-1">Window Seat</h3>
                 <p className="text-sm text-muted-foreground">Love that view!</p>
@@ -155,7 +155,7 @@ const Demo: React.FC = () => {
                 }`}
               >
                 <div className="w-16 h-16 rounded-2xl bg-accent/10 flex items-center justify-center mx-auto mb-4">
-                  <span className="text-3xl">🧍</span>
+                  <User className="w-8 h-8 text-accent" />
                 </div>
                 <h3 className="font-bold text-foreground mb-1">Middle Seat</h3>
                 <p className="text-sm text-muted-foreground">Cozy in the center</p>
@@ -176,7 +176,7 @@ const Demo: React.FC = () => {
                 }`}
               >
                 <div className="w-16 h-16 rounded-2xl bg-success/10 flex items-center justify-center mx-auto mb-4">
-                  <span className="text-3xl">✅</span>
+                  <CheckCircle className="w-8 h-8 text-success" />
                 </div>
                 <h3 className="font-bold text-foreground mb-1">Yes!</h3>
                 <p className="text-sm text-muted-foreground">More elbow room is great</p>
@@ -192,7 +192,7 @@ const Demo: React.FC = () => {
                 }`}
               >
                 <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
-                  <span className="text-3xl">🤷</span>
+                  <HelpCircle className="w-8 h-8 text-muted-foreground" />
                 </div>
                 <h3 className="font-bold text-foreground mb-1">Doesn't Matter</h3>
                 <p className="text-sm text-muted-foreground">I'm flexible</p>
@@ -274,7 +274,7 @@ const Demo: React.FC = () => {
               <div className="space-y-3">
                 <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-xl">
                   <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                    <span>🚗</span>
+                    <Car className="w-5 h-5 text-primary" />
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Preferred row</p>
@@ -283,7 +283,7 @@ const Demo: React.FC = () => {
                 </div>
                 <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-xl">
                   <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center">
-                    <span>{preferences.preferWindow ? '🪟' : '🧍'}</span>
+                    {preferences.preferWindow ? <LayoutGrid className="w-5 h-5 text-accent" /> : <User className="w-5 h-5 text-accent" />}
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Seat position</p>
@@ -292,7 +292,7 @@ const Demo: React.FC = () => {
                 </div>
                 <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-xl">
                   <div className="w-10 h-10 rounded-full bg-success/10 flex items-center justify-center">
-                    <span>{preferences.preferEmptyMiddle ? '✅' : '🤷'}</span>
+                    {preferences.preferEmptyMiddle ? <CheckCircle className="w-5 h-5 text-success" /> : <HelpCircle className="w-5 h-5 text-muted-foreground" />}
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Empty middle seat bonus</p>
