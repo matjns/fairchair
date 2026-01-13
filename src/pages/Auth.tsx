@@ -16,6 +16,7 @@ const carYears = Array.from({ length: currentYear - 1989 }, (_, i) => currentYea
 
 const Auth: React.FC = () => {
   const [isLogin, setIsLogin] = useState(true);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -30,22 +31,25 @@ const Auth: React.FC = () => {
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        // Only redirect on SIGNED_IN event (new login), not on initial load
-        if (event === 'SIGNED_IN' && session) {
-          navigate('/demo');
-        }
+        setIsLoggedIn(!!session);
       }
     );
 
-    // Check for existing session - redirect to demo/dashboard instead of home
+    // Check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        navigate('/demo');
-      }
+      setIsLoggedIn(!!session);
     });
 
     return () => subscription.unsubscribe();
-  }, [navigate]);
+  }, []);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    toast({
+      title: "Logged out",
+      description: "You have been logged out successfully.",
+    });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -153,15 +157,47 @@ const Auth: React.FC = () => {
             </span>
           </div>
 
-          {/* Title */}
-          <h1 className="text-2xl font-bold text-foreground text-center mb-2">
-            {isLogin ? 'Welcome Back!' : 'Join the Family!'}
-          </h1>
-          <p className="text-muted-foreground text-center mb-8">
-            {isLogin 
-              ? 'Log in to manage your family seats' 
-              : 'Create an account to get started'}
-          </p>
+          {isLoggedIn ? (
+            <>
+              {/* Already logged in state */}
+              <h1 className="text-2xl font-bold text-foreground text-center mb-2">
+                You're Already Logged In!
+              </h1>
+              <p className="text-muted-foreground text-center mb-8">
+                You can continue to the app or log out to switch accounts.
+              </p>
+              <div className="space-y-4">
+                <Button 
+                  type="button" 
+                  variant="hero" 
+                  size="lg" 
+                  className="w-full"
+                  onClick={() => navigate('/demo')}
+                >
+                  Continue to App
+                </Button>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  size="lg" 
+                  className="w-full"
+                  onClick={handleLogout}
+                >
+                  Log Out
+                </Button>
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Title */}
+              <h1 className="text-2xl font-bold text-foreground text-center mb-2">
+                {isLogin ? 'Welcome Back!' : 'Join the Family!'}
+              </h1>
+              <p className="text-muted-foreground text-center mb-8">
+                {isLogin 
+                  ? 'Log in to manage your family seats' 
+                  : 'Create an account to get started'}
+              </p>
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-5">
@@ -319,6 +355,8 @@ const Auth: React.FC = () => {
               </button>
             </p>
           </div>
+            </>
+          )}
         </div>
       </div>
     </div>
