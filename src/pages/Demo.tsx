@@ -1,30 +1,68 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ChairIcon } from '@/components/icons/ChairIcon';
-import { Sparkles, ArrowLeft, ArrowRight, Check, Car, Sofa, LayoutGrid, User, CheckCircle, HelpCircle } from 'lucide-react';
-
-const seatPositions = [
-  { id: 'driver', label: 'Driver', row: 'front', position: 'left' },
-  { id: 'front-passenger', label: 'Front Passenger', row: 'front', position: 'right' },
-  { id: 'back-left', label: 'Back Left', row: 'back', position: 'left' },
-  { id: 'back-middle', label: 'Back Middle', row: 'back', position: 'middle' },
-  { id: 'back-right', label: 'Back Right', row: 'back', position: 'right' },
-];
+import { Sparkles, ArrowLeft, ArrowRight, Check, Car, Sofa, LayoutGrid, User, CheckCircle, HelpCircle, Users } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
+import { supabase } from '@/integrations/supabase/client';
+import { carMakes, carModels } from '@/data/carData';
+import { isThreeRowVehicle } from '@/data/vehicleRows';
 
 const Demo: React.FC = () => {
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
+  const [carMake, setCarMake] = useState('');
+  const [carModel, setCarModel] = useState('');
+  const [hasThreeRows, setHasThreeRows] = useState(false);
+  const [loadingVehicle, setLoadingVehicle] = useState(true);
   const [preferences, setPreferences] = useState({
     preferredRow: '',
     preferWindow: false,
     preferEmptyMiddle: false,
   });
 
-  const steps = [
+  // Check if user is logged in and fetch their vehicle
+  useEffect(() => {
+    const fetchUserVehicle = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        const { data: vehicles } = await supabase
+          .from('vehicles')
+          .select('make, model')
+          .eq('user_id', session.user.id)
+          .limit(1);
+        
+        if (vehicles && vehicles.length > 0) {
+          setCarMake(vehicles[0].make);
+          setCarModel(vehicles[0].model);
+          setHasThreeRows(isThreeRowVehicle(vehicles[0].make, vehicles[0].model));
+          setStep(1); // Skip car selection if already have vehicle
+        }
+      }
+      setLoadingVehicle(false);
+    };
+    
+    fetchUserVehicle();
+  }, []);
+
+  // Update row count when car changes
+  useEffect(() => {
+    if (carMake && carModel) {
+      setHasThreeRows(isThreeRowVehicle(carMake, carModel));
+    }
+  }, [carMake, carModel]);
+
+  const getSteps = () => [
+    {
+      title: 'Select Your Vehicle',
+      subtitle: 'Tell us about your car so we can show the right seating options.',
+    },
     {
       title: 'Choose Your Preferred Row',
-      subtitle: 'Do you prefer sitting in the front or back?',
+      subtitle: hasThreeRows 
+        ? 'Your vehicle has 3 rows. Which row do you prefer?' 
+        : 'Do you prefer sitting in the front or back?',
     },
     {
       title: 'Window or Middle?',
@@ -39,6 +77,8 @@ const Demo: React.FC = () => {
       subtitle: 'Here\'s how FairChair will prioritize your seating.',
     },
   ];
+
+  const steps = getSteps();
 
   return (
     <div className="min-h-screen bg-background px-4 py-12">
@@ -93,9 +133,74 @@ const Demo: React.FC = () => {
             {steps[step].subtitle}
           </p>
 
-          {/* Step 0: Row preference */}
+          {/* Step 0: Vehicle selection */}
           {step === 0 && (
-            <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="carMake">Car Make</Label>
+                <div className="relative">
+                  <Car className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground z-10 pointer-events-none" />
+                  <Select 
+                    value={carMake} 
+                    onValueChange={(value) => {
+                      setCarMake(value);
+                      setCarModel('');
+                    }}
+                  >
+                    <SelectTrigger className="pl-10 h-12">
+                      <SelectValue placeholder="Select car make" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-background border border-border z-50">
+                      {carMakes.map((make) => (
+                        <SelectItem key={make} value={make}>
+                          {make}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="carModel">Car Model</Label>
+                <div className="relative">
+                  <Car className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground z-10 pointer-events-none" />
+                  <Select 
+                    value={carModel} 
+                    onValueChange={setCarModel}
+                    disabled={!carMake}
+                  >
+                    <SelectTrigger className="pl-10 h-12">
+                      <SelectValue placeholder={carMake ? "Select car model" : "Select make first"} />
+                    </SelectTrigger>
+                    <SelectContent className="bg-background border border-border z-50">
+                      {carMake && carModels[carMake]?.map((model) => (
+                        <SelectItem key={model} value={model}>
+                          {model}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {carMake && carModel && (
+                <div className="mt-4 p-4 bg-muted/50 rounded-xl">
+                  <p className="text-sm text-muted-foreground">
+                    Your {carMake} {carModel} has{' '}
+                    <span className="font-semibold text-foreground">
+                      {hasThreeRows ? '3 rows' : '2 rows'}
+                    </span>
+                    {' '}of seating.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Step 1: Row preference */}
+          {step === 1 && (
+            <div className={`grid ${hasThreeRows ? 'grid-cols-3' : 'grid-cols-2'} gap-4`}>
               <button
                 onClick={() => setPreferences({ ...preferences, preferredRow: 'front' })}
                 className={`card-interactive p-6 text-center ${
@@ -106,11 +211,29 @@ const Demo: React.FC = () => {
                   <Car className="w-8 h-8 text-primary" />
                 </div>
                 <h3 className="font-bold text-foreground mb-1">Front Row</h3>
-                <p className="text-sm text-muted-foreground">Passenger seat next to driver</p>
+                <p className="text-sm text-muted-foreground">Passenger seat</p>
                 {preferences.preferredRow === 'front' && (
                   <Check className="w-5 h-5 text-primary mx-auto mt-3" />
                 )}
               </button>
+              
+              {hasThreeRows && (
+                <button
+                  onClick={() => setPreferences({ ...preferences, preferredRow: 'middle' })}
+                  className={`card-interactive p-6 text-center ${
+                    preferences.preferredRow === 'middle' ? 'ring-2 ring-primary' : ''
+                  }`}
+                >
+                  <div className="w-16 h-16 rounded-2xl bg-accent/10 flex items-center justify-center mx-auto mb-4">
+                    <Users className="w-8 h-8 text-accent" />
+                  </div>
+                  <h3 className="font-bold text-foreground mb-1">Middle Row</h3>
+                  <p className="text-sm text-muted-foreground">Second row seats</p>
+                  {preferences.preferredRow === 'middle' && (
+                    <Check className="w-5 h-5 text-primary mx-auto mt-3" />
+                  )}
+                </button>
+              )}
               
               <button
                 onClick={() => setPreferences({ ...preferences, preferredRow: 'back' })}
@@ -121,8 +244,8 @@ const Demo: React.FC = () => {
                 <div className="w-16 h-16 rounded-2xl bg-accent/10 flex items-center justify-center mx-auto mb-4">
                   <Sofa className="w-8 h-8 text-accent" />
                 </div>
-                <h3 className="font-bold text-foreground mb-1">Back Row</h3>
-                <p className="text-sm text-muted-foreground">More space in the back</p>
+                <h3 className="font-bold text-foreground mb-1">{hasThreeRows ? 'Back Row' : 'Back Row'}</h3>
+                <p className="text-sm text-muted-foreground">{hasThreeRows ? 'Third row seats' : 'More space in the back'}</p>
                 {preferences.preferredRow === 'back' && (
                   <Check className="w-5 h-5 text-primary mx-auto mt-3" />
                 )}
@@ -130,8 +253,8 @@ const Demo: React.FC = () => {
             </div>
           )}
 
-          {/* Step 1: Window preference */}
-          {step === 1 && (
+          {/* Step 2: Window preference */}
+          {step === 2 && (
             <div className="grid grid-cols-2 gap-4">
               <button
                 onClick={() => setPreferences({ ...preferences, preferWindow: true })}
@@ -167,8 +290,8 @@ const Demo: React.FC = () => {
             </div>
           )}
 
-          {/* Step 2: Empty middle preference */}
-          {step === 2 && (
+          {/* Step 3: Empty middle preference */}
+          {step === 3 && (
             <div className="grid grid-cols-2 gap-4">
               <button
                 onClick={() => setPreferences({ ...preferences, preferEmptyMiddle: true })}
@@ -189,7 +312,7 @@ const Demo: React.FC = () => {
               <button
                 onClick={() => setPreferences({ ...preferences, preferEmptyMiddle: false })}
                 className={`card-interactive p-6 text-center ${
-                  !preferences.preferEmptyMiddle && step === 2 ? 'ring-2 ring-primary' : ''
+                  !preferences.preferEmptyMiddle && step === 3 ? 'ring-2 ring-primary' : ''
                 }`}
               >
                 <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
@@ -201,14 +324,16 @@ const Demo: React.FC = () => {
             </div>
           )}
 
-          {/* Step 3: Summary */}
-          {step === 3 && (
+          {/* Step 4: Summary */}
+          {step === 4 && (
             <div className="space-y-6">
               {/* Car visualization */}
               <div className="bg-muted/50 rounded-2xl p-6">
                 <div className="flex items-center justify-center gap-2 mb-4">
                   <Car className="w-5 h-5 text-primary" />
-                  <span className="font-semibold text-foreground">Your Ideal Seat</span>
+                  <span className="font-semibold text-foreground">
+                    {carMake} {carModel} - Your Ideal Seat
+                  </span>
                 </div>
                 
                 {/* Car seats grid */}
@@ -231,6 +356,45 @@ const Demo: React.FC = () => {
                       </span>
                     </div>
                   </div>
+                  
+                  {/* Middle row (for 3-row vehicles) */}
+                  {hasThreeRows && (
+                    <div className="grid grid-cols-3 gap-3 mb-4">
+                      <div className={`p-4 rounded-xl flex flex-col items-center ${
+                        preferences.preferredRow === 'middle' && preferences.preferWindow ? 'bg-primary/20 ring-2 ring-primary' : 'bg-muted'
+                      }`}>
+                        <ChairIcon 
+                          className={`w-8 h-8 ${preferences.preferredRow === 'middle' && preferences.preferWindow ? 'text-primary' : 'text-muted-foreground'}`}
+                          filled={preferences.preferredRow === 'middle' && preferences.preferWindow}
+                        />
+                        <span className={`text-xs mt-1 ${preferences.preferredRow === 'middle' && preferences.preferWindow ? 'text-primary font-semibold' : 'text-muted-foreground'}`}>
+                          Left
+                        </span>
+                      </div>
+                      <div className={`p-4 rounded-xl flex flex-col items-center ${
+                        preferences.preferredRow === 'middle' && !preferences.preferWindow ? 'bg-primary/20 ring-2 ring-primary' : 'bg-muted'
+                      }`}>
+                        <ChairIcon 
+                          className={`w-8 h-8 ${preferences.preferredRow === 'middle' && !preferences.preferWindow ? 'text-primary' : 'text-muted-foreground'}`}
+                          filled={preferences.preferredRow === 'middle' && !preferences.preferWindow}
+                        />
+                        <span className={`text-xs mt-1 ${preferences.preferredRow === 'middle' && !preferences.preferWindow ? 'text-primary font-semibold' : 'text-muted-foreground'}`}>
+                          Middle
+                        </span>
+                      </div>
+                      <div className={`p-4 rounded-xl flex flex-col items-center ${
+                        preferences.preferredRow === 'middle' && preferences.preferWindow ? 'bg-primary/20 ring-2 ring-primary' : 'bg-muted'
+                      }`}>
+                        <ChairIcon 
+                          className={`w-8 h-8 ${preferences.preferredRow === 'middle' && preferences.preferWindow ? 'text-primary' : 'text-muted-foreground'}`}
+                          filled={preferences.preferredRow === 'middle' && preferences.preferWindow}
+                        />
+                        <span className={`text-xs mt-1 ${preferences.preferredRow === 'middle' && preferences.preferWindow ? 'text-primary font-semibold' : 'text-muted-foreground'}`}>
+                          Right
+                        </span>
+                      </div>
+                    </div>
+                  )}
                   
                   {/* Back row */}
                   <div className="grid grid-cols-3 gap-3">
@@ -313,7 +477,7 @@ const Demo: React.FC = () => {
         </div>
 
         {/* Navigation buttons */}
-        {step < 3 && (
+        {step < 4 && (
           <div className="flex items-center justify-between">
             <Button 
               variant="ghost" 
@@ -330,8 +494,8 @@ const Demo: React.FC = () => {
             </Button>
             <Button 
               variant="hero"
-              onClick={() => setStep(Math.min(3, step + 1))}
-              disabled={step === 0 && !preferences.preferredRow}
+              onClick={() => setStep(Math.min(4, step + 1))}
+              disabled={(step === 0 && (!carMake || !carModel)) || (step === 1 && !preferences.preferredRow)}
             >
               Next
               <ArrowRight className="w-4 h-4 ml-2" />
