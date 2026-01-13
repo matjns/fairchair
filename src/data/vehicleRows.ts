@@ -13,7 +13,7 @@ export interface VehicleSeatConfig {
 // Vehicles with custom seat configurations (not the default 2-3-3)
 export const vehicleSeatConfigs: Record<string, Record<string, VehicleSeatConfig>> = {
   'Toyota': {
-    'Sienna': { rows: 3, seatsPerRow: [2, 3, 2] }, // 7 seats (captain's chairs or bench in 2nd row, 2-seat bench in back)
+    'Sienna': { rows: 3, seatsPerRow: [2, 2, 3] }, // 7 seats (2 front, 2 captain's chairs in middle, 3-seat bench in back)
     '4Runner': { rows: 3, seatsPerRow: [2, 3, 2] }, // 7 seats
     'Highlander': { rows: 3, seatsPerRow: [2, 3, 2] }, // 7-8 seats depending on config, using 7 as common
     'Grand Highlander': { rows: 3, seatsPerRow: [2, 3, 3] }, // 8 seats
