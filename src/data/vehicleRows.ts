@@ -1,6 +1,64 @@
 // Vehicles with 3 rows (minivans, large SUVs, etc.)
 // This is a comprehensive list - vehicles not in this list are assumed to have 2 rows
 
+// Seat configuration: [front, middle, back] - represents seats per row
+// Default 3-row config is [2, 3, 3] = 8 seats
+// Default 2-row config is [2, 3] = 5 seats
+
+export interface VehicleSeatConfig {
+  rows: number;
+  seatsPerRow: number[]; // [front, middle, back?]
+}
+
+// Vehicles with custom seat configurations (not the default 2-3-3)
+export const vehicleSeatConfigs: Record<string, Record<string, VehicleSeatConfig>> = {
+  'Toyota': {
+    'Sienna': { rows: 3, seatsPerRow: [2, 3, 2] }, // 7 seats (captain's chairs or bench in 2nd row, 2-seat bench in back)
+    '4Runner': { rows: 3, seatsPerRow: [2, 3, 2] }, // 7 seats
+    'Highlander': { rows: 3, seatsPerRow: [2, 3, 2] }, // 7-8 seats depending on config, using 7 as common
+    'Grand Highlander': { rows: 3, seatsPerRow: [2, 3, 3] }, // 8 seats
+    'Sequoia': { rows: 3, seatsPerRow: [2, 3, 3] }, // 8 seats
+    'Land Cruiser': { rows: 3, seatsPerRow: [2, 3, 2] }, // 7 seats
+  },
+  'Honda': {
+    'Odyssey': { rows: 3, seatsPerRow: [2, 3, 3] }, // 8 seats
+    'Pilot': { rows: 3, seatsPerRow: [2, 3, 2] }, // 7-8 seats, using 7 as common
+    'Passport': { rows: 2, seatsPerRow: [2, 3] }, // 5 seats (2-row only)
+  },
+  'Chrysler': {
+    'Pacifica': { rows: 3, seatsPerRow: [2, 2, 3] }, // 7 seats with Stow 'n Go
+    'Pacifica Hybrid': { rows: 3, seatsPerRow: [2, 2, 3] },
+    'Voyager': { rows: 3, seatsPerRow: [2, 3, 2] },
+  },
+  'Kia': {
+    'Carnival': { rows: 3, seatsPerRow: [2, 3, 3] }, // 8 seats
+    'Sorento': { rows: 3, seatsPerRow: [2, 3, 2] }, // 7 seats
+    'Telluride': { rows: 3, seatsPerRow: [2, 3, 2] }, // 7-8 seats
+    'EV9': { rows: 3, seatsPerRow: [2, 3, 2] }, // 7 seats
+  },
+  'Hyundai': {
+    'Palisade': { rows: 3, seatsPerRow: [2, 3, 3] }, // 8 seats
+    'Santa Fe': { rows: 3, seatsPerRow: [2, 3, 2] }, // 7 seats
+  },
+  'Mazda': {
+    'CX-9': { rows: 3, seatsPerRow: [2, 3, 2] }, // 7 seats
+    'CX-90': { rows: 3, seatsPerRow: [2, 3, 2] }, // 7-8 seats
+  },
+  'Subaru': {
+    'Ascent': { rows: 3, seatsPerRow: [2, 3, 2] }, // 7-8 seats
+  },
+  'Volkswagen': {
+    'Atlas': { rows: 3, seatsPerRow: [2, 3, 2] }, // 7 seats
+    'Atlas Cross Sport': { rows: 2, seatsPerRow: [2, 3] }, // 5 seats (2-row only)
+    'ID. Buzz': { rows: 3, seatsPerRow: [2, 3, 2] }, // 7 seats
+    'Tiguan': { rows: 3, seatsPerRow: [2, 3, 2] }, // 7 seats
+  },
+  'Nissan': {
+    'Pathfinder': { rows: 3, seatsPerRow: [2, 3, 2] }, // 7-8 seats
+    'Armada': { rows: 3, seatsPerRow: [2, 3, 3] }, // 8 seats
+  },
+};
+
 export const threeRowVehicles: Record<string, string[]> = {
   // American brands
   'Buick': ['Enclave'],
@@ -44,14 +102,32 @@ export const threeRowVehicles: Record<string, string[]> = {
   'NIO': ['ES8'],
 };
 
-export function getVehicleRowCount(make: string, model: string): number {
+export function getVehicleSeatConfig(make: string, model: string): VehicleSeatConfig {
+  // Check for custom configuration first
+  const customConfig = vehicleSeatConfigs[make]?.[model];
+  if (customConfig) {
+    return customConfig;
+  }
+  
+  // Check if it's a 3-row vehicle with default config
   const threeRowModels = threeRowVehicles[make];
   if (threeRowModels && threeRowModels.includes(model)) {
-    return 3;
+    return { rows: 3, seatsPerRow: [2, 3, 3] }; // Default 8-seat config
   }
-  return 2;
+  
+  // Default 2-row config
+  return { rows: 2, seatsPerRow: [2, 3] }; // Default 5-seat config
+}
+
+export function getVehicleRowCount(make: string, model: string): number {
+  return getVehicleSeatConfig(make, model).rows;
 }
 
 export function isThreeRowVehicle(make: string, model: string): boolean {
   return getVehicleRowCount(make, model) === 3;
+}
+
+export function getTotalSeats(make: string, model: string): number {
+  const config = getVehicleSeatConfig(make, model);
+  return config.seatsPerRow.reduce((sum, seats) => sum + seats, 0);
 }
