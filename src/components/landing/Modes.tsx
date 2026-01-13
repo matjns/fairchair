@@ -5,7 +5,6 @@ const modes = [
   {
     icon: ListChecks,
     title: 'Chore Mode',
-    emoji: '🧹',
     description: 'The more chores you do, the better your chances at the best seat! Track chores and reward responsibility.',
     features: ['Track daily chores', 'Fair point system', 'Motivates kids'],
     gradient: 'from-primary to-primary/70',
@@ -13,7 +12,6 @@ const modes = [
   {
     icon: Brain,
     title: 'Quiz Mode',
-    emoji: '🧠',
     description: 'Answer trivia questions to compete for seats! Choose from different topics and difficulty levels.',
     features: ['Multiple topics', 'Timed challenges', 'Learn while you play'],
     gradient: 'from-accent to-accent/70',
@@ -21,7 +19,6 @@ const modes = [
   {
     icon: Shuffle,
     title: 'Random/Fair Mode',
-    emoji: '🎲',
     description: 'Let the app randomly assign seats based on preferences while ensuring everyone gets fair turns over time.',
     features: ['Respects preferences', 'Tracks seat history', 'Automatic fairness'],
     gradient: 'from-warning to-warning/70',
@@ -50,7 +47,7 @@ export const Modes: React.FC = () => {
               {/* Header */}
               <div className="flex items-center gap-4 mb-6">
                 <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${mode.gradient} flex items-center justify-center shadow-lg`}>
-                  <span className="text-3xl">{mode.emoji}</span>
+                  <mode.icon className="w-8 h-8 text-white" />
                 </div>
                 <div>
                   <h3 className="text-2xl font-bold text-foreground">

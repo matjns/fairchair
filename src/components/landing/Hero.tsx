@@ -2,7 +2,7 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { CarIcon } from '@/components/icons/CarIcon';
 import { ChairIcon } from '@/components/icons/ChairIcon';
-import { ArrowRight, Users, Sparkles } from 'lucide-react';
+import { ArrowRight, Users, Sparkles, Car, UserCircle, ListChecks, Brain, Shuffle, LucideIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export const Hero: React.FC = () => {
@@ -79,11 +79,11 @@ export const Hero: React.FC = () => {
           className="flex flex-wrap items-center justify-center gap-3 animate-fade-in-up"
           style={{ animationDelay: '0.4s' }}
         >
-          <FeaturePill icon="🚗" text="Multiple Vehicles" />
-          <FeaturePill icon="👨‍👩‍👧‍👦" text="Family Profiles" />
-          <FeaturePill icon="🧹" text="Chore Tracking" />
-          <FeaturePill icon="🧠" text="Fun Quizzes" />
-          <FeaturePill icon="🎲" text="Random/Fair" />
+          <FeaturePill icon={Car} text="Multiple Vehicles" />
+          <FeaturePill icon={Users} text="Family Profiles" />
+          <FeaturePill icon={ListChecks} text="Chore Tracking" />
+          <FeaturePill icon={Brain} text="Fun Quizzes" />
+          <FeaturePill icon={Shuffle} text="Random/Fair" />
         </div>
       </div>
 
@@ -107,9 +107,9 @@ export const Hero: React.FC = () => {
   );
 };
 
-const FeaturePill: React.FC<{ icon: string; text: string }> = ({ icon, text }) => (
+const FeaturePill: React.FC<{ icon: LucideIcon; text: string }> = ({ icon: Icon, text }) => (
   <div className="flex items-center gap-2 bg-card shadow-soft rounded-full px-4 py-2 border border-border/50">
-    <span className="text-xl">{icon}</span>
+    <Icon className="w-5 h-5 text-primary" />
     <span className="text-sm font-medium text-foreground">{text}</span>
   </div>
 );
