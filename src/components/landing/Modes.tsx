@@ -33,7 +33,7 @@ export const Modes: React.FC = () => {
   const navigate = useNavigate();
 
   const handleModeClick = (modeId: string) => {
-    navigate(`/demo?mode=${modeId}`);
+    navigate(`/${modeId}-mode`);
   };
 
   return (
