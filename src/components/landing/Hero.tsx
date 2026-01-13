@@ -83,6 +83,7 @@ export const Hero: React.FC = () => {
           <FeaturePill icon="👨‍👩‍👧‍👦" text="Family Profiles" />
           <FeaturePill icon="🧹" text="Chore Tracking" />
           <FeaturePill icon="🧠" text="Fun Quizzes" />
+          <FeaturePill icon="🎲" text="Random/Fair" />
         </div>
       </div>
 
