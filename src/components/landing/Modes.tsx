@@ -1,8 +1,10 @@
 import React from 'react';
-import { ListChecks, Brain, Trophy, Shuffle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { ListChecks, Brain, Trophy, Shuffle, ArrowRight } from 'lucide-react';
 
 const modes = [
   {
+    id: 'chore',
     icon: ListChecks,
     title: 'Chore Mode',
     description: 'The more chores you do, the better your chances at the best seat! Track chores and reward responsibility.',
@@ -10,6 +12,7 @@ const modes = [
     gradient: 'from-primary to-primary/70',
   },
   {
+    id: 'quiz',
     icon: Brain,
     title: 'Quiz Mode',
     description: 'Answer trivia questions to compete for seats! Choose from different topics and difficulty levels.',
@@ -17,6 +20,7 @@ const modes = [
     gradient: 'from-accent to-accent/70',
   },
   {
+    id: 'random',
     icon: Shuffle,
     title: 'Random/Fair Mode',
     description: 'Let the app randomly assign seats based on preferences while ensuring everyone gets fair turns over time.',
@@ -26,6 +30,12 @@ const modes = [
 ];
 
 export const Modes: React.FC = () => {
+  const navigate = useNavigate();
+
+  const handleModeClick = (modeId: string) => {
+    navigate(`/demo?mode=${modeId}`);
+  };
+
   return (
     <section className="py-24 px-4">
       <div className="max-w-6xl mx-auto">
@@ -40,13 +50,14 @@ export const Modes: React.FC = () => {
 
         <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
           {modes.map((mode) => (
-            <div 
+            <button 
               key={mode.title}
-              className="card-interactive p-8 group"
+              onClick={() => handleModeClick(mode.id)}
+              className="card-interactive p-8 group text-left cursor-pointer hover:scale-[1.02] transition-transform"
             >
               {/* Header */}
               <div className="flex items-center gap-4 mb-6">
-                <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${mode.gradient} flex items-center justify-center shadow-lg`}>
+                <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${mode.gradient} flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform`}>
                   <mode.icon className="w-8 h-8 text-white" />
                 </div>
                 <div>
@@ -62,7 +73,7 @@ export const Modes: React.FC = () => {
               </p>
 
               {/* Features */}
-              <ul className="space-y-3">
+              <ul className="space-y-3 mb-6">
                 {mode.features.map((feature) => (
                   <li key={feature} className="flex items-center gap-3 text-sm">
                     <Trophy className="w-4 h-4 text-warning" />
@@ -70,7 +81,13 @@ export const Modes: React.FC = () => {
                   </li>
                 ))}
               </ul>
-            </div>
+
+              {/* CTA */}
+              <div className="flex items-center gap-2 text-primary font-semibold group-hover:gap-3 transition-all">
+                <span>Try this mode</span>
+                <ArrowRight className="w-4 h-4" />
+              </div>
+            </button>
           ))}
         </div>
       </div>
