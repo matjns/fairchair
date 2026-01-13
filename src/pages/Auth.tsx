@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ChairIcon } from '@/components/icons/ChairIcon';
-import { Sparkles, Mail, Lock, User, ArrowLeft, Loader2 } from 'lucide-react';
+import { Sparkles, Mail, Lock, User, ArrowLeft, Loader2, Car } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -13,6 +13,8 @@ const Auth: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [carMake, setCarMake] = useState('');
+  const [carModel, setCarModel] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -63,7 +65,7 @@ const Auth: React.FC = () => {
       } else {
         const redirectUrl = `${window.location.origin}/`;
         
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
@@ -80,7 +82,20 @@ const Auth: React.FC = () => {
             description: error.message,
             variant: "destructive",
           });
-        } else {
+        } else if (data.user) {
+          // Add the vehicle for the new user
+          const { error: vehicleError } = await supabase
+            .from('vehicles')
+            .insert({
+              user_id: data.user.id,
+              make: carMake,
+              model: carModel,
+            });
+
+          if (vehicleError) {
+            console.error('Failed to add vehicle:', vehicleError);
+          }
+
           toast({
             title: "Account created!",
             description: "You have successfully signed up.",
@@ -142,22 +157,58 @@ const Auth: React.FC = () => {
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-5">
             {!isLogin && (
-              <div className="space-y-2">
-                <Label htmlFor="name">Your Name</Label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                  <Input
-                    id="name"
-                    type="text"
-                    placeholder="Enter your name"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className="pl-10 h-12"
-                    required
-                    disabled={loading}
-                  />
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="name">Your Name</Label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                    <Input
+                      id="name"
+                      type="text"
+                      placeholder="Enter your name"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      className="pl-10 h-12"
+                      required
+                      disabled={loading}
+                    />
+                  </div>
                 </div>
-              </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="carMake">Car Make</Label>
+                  <div className="relative">
+                    <Car className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                    <Input
+                      id="carMake"
+                      type="text"
+                      placeholder="e.g. Toyota, Honda, Ford"
+                      value={carMake}
+                      onChange={(e) => setCarMake(e.target.value)}
+                      className="pl-10 h-12"
+                      required
+                      disabled={loading}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="carModel">Car Model</Label>
+                  <div className="relative">
+                    <Car className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                    <Input
+                      id="carModel"
+                      type="text"
+                      placeholder="e.g. Camry, Civic, F-150"
+                      value={carModel}
+                      onChange={(e) => setCarModel(e.target.value)}
+                      className="pl-10 h-12"
+                      required
+                      disabled={loading}
+                    />
+                  </div>
+                </div>
+              </>
             )}
 
             <div className="space-y-2">
