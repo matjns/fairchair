@@ -1,5 +1,5 @@
 import React from 'react';
-import { ListChecks, Brain, Trophy } from 'lucide-react';
+import { ListChecks, Brain, Trophy, Shuffle } from 'lucide-react';
 
 const modes = [
   {
@@ -18,6 +18,14 @@ const modes = [
     features: ['Multiple topics', 'Timed challenges', 'Learn while you play'],
     gradient: 'from-accent to-accent/70',
   },
+  {
+    icon: Shuffle,
+    title: 'Random/Fair Mode',
+    emoji: '🎲',
+    description: 'Let the app randomly assign seats based on preferences while ensuring everyone gets fair turns over time.',
+    features: ['Respects preferences', 'Tracks seat history', 'Automatic fairness'],
+    gradient: 'from-warning to-warning/70',
+  },
 ];
 
 export const Modes: React.FC = () => {
@@ -33,7 +41,7 @@ export const Modes: React.FC = () => {
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+        <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
           {modes.map((mode) => (
             <div 
               key={mode.title}
