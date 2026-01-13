@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ChairIcon } from '@/components/icons/ChairIcon';
 import { Sparkles, ArrowLeft, ArrowRight, Check, Car, Sofa, LayoutGrid, User, CheckCircle, HelpCircle } from 'lucide-react';
@@ -13,6 +13,7 @@ const seatPositions = [
 ];
 
 const Demo: React.FC = () => {
+  const navigate = useNavigate();
   const [step, setStep] = useState(0);
   const [preferences, setPreferences] = useState({
     preferredRow: '',
@@ -316,8 +317,13 @@ const Demo: React.FC = () => {
           <div className="flex items-center justify-between">
             <Button 
               variant="ghost" 
-              onClick={() => setStep(Math.max(0, step - 1))}
-              disabled={step === 0}
+              onClick={() => {
+                if (step === 0) {
+                  navigate('/');
+                } else {
+                  setStep(step - 1);
+                }
+              }}
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back
