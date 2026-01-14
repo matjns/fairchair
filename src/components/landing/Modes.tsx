@@ -6,6 +6,7 @@ const modes = [
   {
     id: 'chore',
     icon: ListChecks,
+    iconSize: 'w-8 h-8',
     title: 'Chore Mode',
     description: 'The more chores you do, the better your chances at the best seat! Track chores and reward responsibility.',
     features: ['Track daily chores', 'Fair point system', 'Motivates kids'],
@@ -14,6 +15,7 @@ const modes = [
   {
     id: 'quiz',
     icon: Brain,
+    iconSize: 'w-8 h-8',
     title: 'Quiz Mode',
     description: 'Answer trivia questions to compete for seats! Choose from different topics and difficulty levels.',
     features: ['Multiple topics', 'Timed challenges', 'Learn while you play'],
@@ -22,6 +24,7 @@ const modes = [
   {
     id: 'random',
     icon: Shuffle,
+    iconSize: 'w-8 h-8',
     title: 'Random/Fair Mode',
     description: 'Let the app randomly assign seats based on preferences while ensuring everyone gets fair turns over time.',
     features: ['Respects preferences', 'Tracks seat history', 'Automatic fairness'],
@@ -58,7 +61,7 @@ export const Modes: React.FC = () => {
               {/* Header */}
               <div className="flex items-center gap-4 mb-6">
                 <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${mode.gradient} flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform`}>
-                  <mode.icon className="w-8 h-8 text-white" />
+                  <mode.icon className={`${mode.iconSize || 'w-8 h-8'} text-white`} />
                 </div>
                 <div>
                   <h3 className="text-2xl font-bold text-foreground">

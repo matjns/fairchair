@@ -22,11 +22,16 @@ interface QuizQuestion {
   difficulty: string;
 }
 
-type QuizStep = 'setup' | 'select-players' | 'select-topic' | 'countdown' | 'question' | 'result';
+type QuizStep = 'setup' | 'select-players' | 'select-difficulty' | 'select-topic' | 'countdown' | 'question' | 'result';
+type Difficulty = 'easy' | 'medium' | 'hard';
 
 const TOPICS = ['Science', 'Math', 'Geography', 'History', 'Animals', 'Sports'];
 const COUNTDOWN_SECONDS = 3;
-const ANSWER_TIME_SECONDS = 10;
+const DIFFICULTY_CONFIG: Record<Difficulty, { time: number; label: string; color: string }> = {
+  easy: { time: 30, label: 'Easy', color: 'bg-success' },
+  medium: { time: 20, label: 'Medium', color: 'bg-warning' },
+  hard: { time: 15, label: 'Hard', color: 'bg-destructive' },
+};
 
 const QuizMode: React.FC = () => {
   const navigate = useNavigate();
@@ -34,11 +39,12 @@ const QuizMode: React.FC = () => {
   const [step, setStep] = useState<QuizStep>('setup');
   const [player1, setPlayer1] = useState<FamilyMember | null>(null);
   const [player2, setPlayer2] = useState<FamilyMember | null>(null);
+  const [selectedDifficulty, setSelectedDifficulty] = useState<Difficulty>('medium');
   const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
   const [currentQuestion, setCurrentQuestion] = useState<QuizQuestion | null>(null);
   const [shuffledAnswers, setShuffledAnswers] = useState<string[]>([]);
   const [countdown, setCountdown] = useState(COUNTDOWN_SECONDS);
-  const [timeLeft, setTimeLeft] = useState(ANSWER_TIME_SECONDS);
+  const [timeLeft, setTimeLeft] = useState(DIFFICULTY_CONFIG.medium.time);
   const [player1Answer, setPlayer1Answer] = useState<string | null>(null);
   const [player2Answer, setPlayer2Answer] = useState<string | null>(null);
   const [player1Time, setPlayer1Time] = useState<number | null>(null);
@@ -62,15 +68,27 @@ const QuizMode: React.FC = () => {
     checkAuth();
   }, [navigate]);
 
-  const fetchQuestion = async (topic: string) => {
+  const fetchQuestion = async (topic: string, difficulty: Difficulty) => {
     const { data, error } = await supabase
       .from('quiz_questions')
       .select('*')
-      .eq('topic', topic);
+      .eq('topic', topic)
+      .eq('difficulty', difficulty);
     
     if (error || !data || data.length === 0) {
-      console.error('Failed to fetch question:', error);
-      return null;
+      // Fallback: try any difficulty if selected one has no questions
+      const { data: fallbackData, error: fallbackError } = await supabase
+        .from('quiz_questions')
+        .select('*')
+        .eq('topic', topic);
+      
+      if (fallbackError || !fallbackData || fallbackData.length === 0) {
+        console.error('Failed to fetch question:', error);
+        return null;
+      }
+      
+      const randomQuestion = fallbackData[Math.floor(Math.random() * fallbackData.length)];
+      return randomQuestion as QuizQuestion;
     }
     
     const randomQuestion = data[Math.floor(Math.random() * data.length)];
@@ -80,7 +98,7 @@ const QuizMode: React.FC = () => {
   const startQuiz = async () => {
     if (!selectedTopic) return;
     
-    const question = await fetchQuestion(selectedTopic);
+    const question = await fetchQuestion(selectedTopic, selectedDifficulty);
     if (!question) return;
     
     setCurrentQuestion(question);
@@ -105,14 +123,14 @@ const QuizMode: React.FC = () => {
     
     if (countdown <= 0) {
       setStep('question');
-      setTimeLeft(ANSWER_TIME_SECONDS);
+      setTimeLeft(DIFFICULTY_CONFIG[selectedDifficulty].time);
       setQuestionStartTime(Date.now());
       return;
     }
     
     const timer = setTimeout(() => setCountdown(c => c - 1), 1000);
     return () => clearTimeout(timer);
-  }, [step, countdown]);
+  }, [step, countdown, selectedDifficulty]);
 
   // Question timer effect
   useEffect(() => {
@@ -178,6 +196,7 @@ const QuizMode: React.FC = () => {
     setPlayer1(null);
     setPlayer2(null);
     setSelectedTopic(null);
+    setSelectedDifficulty('medium');
     setCurrentQuestion(null);
     setWinner(null);
   };
@@ -192,6 +211,8 @@ const QuizMode: React.FC = () => {
       </div>
     );
   }
+
+  const answerTimeSeconds = DIFFICULTY_CONFIG[selectedDifficulty].time;
 
   return (
     <div className="min-h-screen bg-background px-4 py-12">
@@ -299,8 +320,40 @@ const QuizMode: React.FC = () => {
               <Button
                 variant="hero"
                 className="w-full"
-                onClick={() => setStep('select-topic')}
+                onClick={() => setStep('select-difficulty')}
                 disabled={!player1 || !player2}
+              >
+                Next: Choose Difficulty
+              </Button>
+            </div>
+          )}
+
+          {/* Select Difficulty */}
+          {step === 'select-difficulty' && (
+            <div className="space-y-6">
+              <h2 className="text-lg font-semibold text-foreground text-center">Choose Difficulty</h2>
+              <p className="text-muted-foreground text-center">
+                {player1?.name} vs {player2?.name}
+              </p>
+              
+              <div className="grid grid-cols-3 gap-3">
+                {(Object.keys(DIFFICULTY_CONFIG) as Difficulty[]).map(difficulty => (
+                  <Button
+                    key={difficulty}
+                    variant={selectedDifficulty === difficulty ? 'default' : 'outline'}
+                    className={`h-20 flex-col gap-1 ${selectedDifficulty === difficulty ? '' : ''}`}
+                    onClick={() => setSelectedDifficulty(difficulty)}
+                  >
+                    <span className="text-lg font-bold capitalize">{difficulty}</span>
+                    <span className="text-xs opacity-70">{DIFFICULTY_CONFIG[difficulty].time}s timer</span>
+                  </Button>
+                ))}
+              </div>
+
+              <Button
+                variant="hero"
+                className="w-full"
+                onClick={() => setStep('select-topic')}
               >
                 Next: Choose Topic
               </Button>
@@ -312,7 +365,7 @@ const QuizMode: React.FC = () => {
             <div className="space-y-6">
               <h2 className="text-lg font-semibold text-foreground text-center">Choose a Topic</h2>
               <p className="text-muted-foreground text-center">
-                {player1?.name} vs {player2?.name}
+                {player1?.name} vs {player2?.name} • <span className="capitalize">{selectedDifficulty}</span> difficulty
               </p>
               
               <div className="grid grid-cols-2 gap-3">
@@ -350,6 +403,9 @@ const QuizMode: React.FC = () => {
               <p className="text-muted-foreground mt-4">
                 {player1?.name} vs {player2?.name}
               </p>
+              <p className="text-sm text-muted-foreground mt-2">
+                <span className="capitalize">{selectedDifficulty}</span> • {answerTimeSeconds} seconds to answer
+              </p>
             </div>
           )}
 
@@ -359,15 +415,20 @@ const QuizMode: React.FC = () => {
               <div className="text-center">
                 <div className="flex items-center justify-center gap-2 mb-2">
                   <Clock className="w-5 h-5 text-warning" />
-                  <span className={`text-2xl font-bold ${timeLeft <= 3 ? 'text-destructive animate-pulse' : 'text-warning'}`}>
+                  <span className={`text-2xl font-bold ${timeLeft <= 5 ? 'text-destructive animate-pulse' : 'text-warning'}`}>
                     {timeLeft}s
                   </span>
                 </div>
-                <Progress value={(timeLeft / ANSWER_TIME_SECONDS) * 100} className="h-2" />
+                <Progress value={(timeLeft / answerTimeSeconds) * 100} className="h-2" />
               </div>
 
               <div className="p-4 bg-muted/50 rounded-xl">
-                <p className="text-xs text-muted-foreground mb-1">{currentQuestion.topic}</p>
+                <div className="flex items-center gap-2 mb-1">
+                  <p className="text-xs text-muted-foreground">{currentQuestion.topic}</p>
+                  <span className={`text-xs px-2 py-0.5 rounded-full ${DIFFICULTY_CONFIG[selectedDifficulty].color} text-white`}>
+                    {DIFFICULTY_CONFIG[selectedDifficulty].label}
+                  </span>
+                </div>
                 <h3 className="text-xl font-semibold text-foreground">{currentQuestion.question}</h3>
               </div>
 
