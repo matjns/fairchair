@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ChairIcon } from '@/components/icons/ChairIcon';
@@ -12,13 +12,25 @@ import { FamilyMemberCard } from '@/components/modes/FamilyMemberCard';
 import { AddFamilyMemberForm } from '@/components/modes/AddFamilyMemberForm';
 import { SeatWinnerDisplay } from '@/components/modes/SeatWinnerDisplay';
 
+const COLORS = [
+  'hsl(var(--primary))',
+  'hsl(var(--accent))',
+  'hsl(var(--warning))',
+  'hsl(var(--success))',
+  'hsl(210, 70%, 55%)',
+  'hsl(280, 70%, 55%)',
+  'hsl(30, 70%, 55%)',
+  'hsl(180, 70%, 55%)',
+];
+
 const RandomMode: React.FC = () => {
   const navigate = useNavigate();
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [activeTab, setActiveTab] = useState<'family' | 'history' | 'pick'>('family');
   const [isSpinning, setIsSpinning] = useState(false);
-  const [spinningName, setSpinningName] = useState<string | null>(null);
   const [winner, setWinner] = useState<FamilyMember | null>(null);
+  const [rotation, setRotation] = useState(0);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const { familyMembers, loading, addFamilyMember, deleteFamilyMember } = useFamilyMembers();
   const { history, selectWeightedRandom, recordSeating, getSeatCountsForMember } = useSeatingHistory();
@@ -36,35 +48,116 @@ const RandomMode: React.FC = () => {
     checkAuth();
   }, [navigate]);
 
+  // Draw the wheel
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || kids.length < 2) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const size = canvas.width;
+    const centerX = size / 2;
+    const centerY = size / 2;
+    const radius = size / 2 - 10;
+
+    // Clear canvas
+    ctx.clearRect(0, 0, size, size);
+
+    // Draw segments
+    const segmentAngle = (2 * Math.PI) / kids.length;
+    
+    kids.forEach((kid, index) => {
+      const startAngle = index * segmentAngle + (rotation * Math.PI / 180);
+      const endAngle = startAngle + segmentAngle;
+      
+      // Draw segment
+      ctx.beginPath();
+      ctx.moveTo(centerX, centerY);
+      ctx.arc(centerX, centerY, radius, startAngle, endAngle);
+      ctx.closePath();
+      ctx.fillStyle = COLORS[index % COLORS.length];
+      ctx.fill();
+      ctx.strokeStyle = 'white';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Draw text
+      ctx.save();
+      ctx.translate(centerX, centerY);
+      ctx.rotate(startAngle + segmentAngle / 2);
+      ctx.textAlign = 'right';
+      ctx.fillStyle = 'white';
+      ctx.font = 'bold 14px sans-serif';
+      ctx.shadowColor = 'rgba(0,0,0,0.5)';
+      ctx.shadowBlur = 2;
+      ctx.fillText(kid.name, radius - 20, 5);
+      ctx.restore();
+    });
+
+    // Draw center circle
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, 20, 0, 2 * Math.PI);
+    ctx.fillStyle = 'white';
+    ctx.fill();
+    ctx.strokeStyle = 'hsl(var(--primary))';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+  }, [kids, rotation]);
+
   const spinWheel = () => {
-    if (kids.length < 2) return;
+    if (kids.length < 2 || isSpinning) return;
     
     setIsSpinning(true);
     setWinner(null);
     
-    // Animate through names
-    let spins = 0;
-    const maxSpins = 20;
-    const spinInterval = setInterval(() => {
-      const randomKid = kids[Math.floor(Math.random() * kids.length)];
-      setSpinningName(randomKid.name);
-      spins++;
+    // Select weighted random winner first
+    const selectedWinner = selectWeightedRandom(kids, 'best-seat');
+    if (!selectedWinner) {
+      setIsSpinning(false);
+      return;
+    }
+    
+    // Calculate winning segment index
+    const winnerIndex = kids.findIndex(k => k.id === selectedWinner.id);
+    const segmentAngle = 360 / kids.length;
+    
+    // Calculate final rotation to land on winner
+    // Pointer is at top (270 degrees), so we need to position winner there
+    const winnerCenter = winnerIndex * segmentAngle + segmentAngle / 2;
+    const targetAngle = 270 - winnerCenter;
+    
+    // Add extra rotations for dramatic effect
+    const extraRotations = 5 + Math.random() * 3;
+    const finalRotation = rotation + (extraRotations * 360) + targetAngle + (Math.random() * 20 - 10);
+    
+    // Animate the spin
+    const duration = 4000;
+    const startTime = Date.now();
+    const startRotation = rotation;
+    const totalRotation = finalRotation - startRotation;
+    
+    const animate = () => {
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min(elapsed / duration, 1);
       
-      if (spins >= maxSpins) {
-        clearInterval(spinInterval);
-        
-        // Select weighted random winner
-        const selectedWinner = selectWeightedRandom(kids, 'best-seat');
-        if (selectedWinner) {
-          setSpinningName(selectedWinner.name);
-          setTimeout(() => {
-            setWinner(selectedWinner);
-            setIsSpinning(false);
-            recordSeating(selectedWinner.id, 'best-seat', 'preferred', 'random');
-          }, 500);
-        }
+      // Easing function for smooth deceleration
+      const easeOut = 1 - Math.pow(1 - progress, 3);
+      
+      const currentRotation = startRotation + totalRotation * easeOut;
+      setRotation(currentRotation % 360);
+      
+      if (progress < 1) {
+        requestAnimationFrame(animate);
+      } else {
+        setWinner(selectedWinner);
+        setIsSpinning(false);
+        recordSeating(selectedWinner.id, 'best-seat', 'preferred', 'random');
       }
-    }, 100);
+    };
+    
+    requestAnimationFrame(animate);
   };
 
   if (isAuthenticated === null || loading) {
@@ -229,34 +322,33 @@ const RandomMode: React.FC = () => {
                 </p>
               ) : (
                 <>
-                  <div className="py-8">
-                    <div 
-                      className={`inline-block px-8 py-6 rounded-2xl ${
-                        isSpinning 
-                          ? 'bg-primary/20 animate-pulse' 
-                          : 'bg-muted/50'
-                      }`}
-                    >
-                      {isSpinning ? (
-                        <p className="text-3xl font-bold text-primary">
-                          {spinningName}
-                        </p>
-                      ) : (
-                        <div className="flex items-center gap-3">
-                          <Shuffle className="w-8 h-8 text-muted-foreground" />
-                          <p className="text-xl text-muted-foreground">Press spin to pick!</p>
-                        </div>
-                      )}
+                  {/* Spinning Wheel */}
+                  <div className="relative inline-block">
+                    {/* Pointer/Arrow */}
+                    <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-2 z-10">
+                      <div className="w-0 h-0 border-l-[12px] border-r-[12px] border-t-[20px] border-l-transparent border-r-transparent border-t-primary drop-shadow-lg" />
                     </div>
+                    
+                    {/* Wheel Canvas */}
+                    <canvas
+                      ref={canvasRef}
+                      width={280}
+                      height={280}
+                      className="rounded-full shadow-2xl"
+                    />
+                    
+                    {/* Outer ring decoration */}
+                    <div className="absolute inset-0 rounded-full border-4 border-primary/20 pointer-events-none" />
                   </div>
 
                   <div className="space-y-3">
                     <p className="text-sm text-muted-foreground">Eligible kids:</p>
                     <div className="flex flex-wrap justify-center gap-2">
-                      {kids.map(kid => (
+                      {kids.map((kid, index) => (
                         <span
                           key={kid.id}
-                          className="px-3 py-1 bg-muted rounded-full text-sm font-medium text-foreground"
+                          className="px-3 py-1 rounded-full text-sm font-medium text-white"
+                          style={{ backgroundColor: COLORS[index % COLORS.length] }}
                         >
                           {kid.name}
                         </span>

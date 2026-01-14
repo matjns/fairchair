@@ -73,24 +73,24 @@ const ChoreMode: React.FC = () => {
   };
 
   const handleCompete = () => {
-    // Filter out parents and select winner based on points
+    // Filter out parents and select winner based on highest points (not random)
     const kids = familyMembers.filter(m => !m.is_parent);
     if (kids.length === 0) return;
 
-    // Weighted random based on points (more points = higher chance)
-    const totalPoints = kids.reduce((sum, k) => sum + (k.total_chore_points || 1), 0);
-    let random = Math.random() * totalPoints;
+    // Sort kids by points descending and pick the one with highest points
+    const sortedKids = [...kids].sort((a, b) => b.total_chore_points - a.total_chore_points);
+    const topScore = sortedKids[0].total_chore_points;
     
-    for (const kid of kids) {
-      random -= (kid.total_chore_points || 1);
-      if (random <= 0) {
-        setWinner(kid);
-        recordSeating(kid.id, 'best-seat', 'preferred', 'chore');
-        return;
-      }
-    }
+    // Get all kids tied for first place
+    const topKids = sortedKids.filter(k => k.total_chore_points === topScore);
     
-    setWinner(kids[kids.length - 1]);
+    // If there's a tie, pick randomly among tied kids
+    const selectedWinner = topKids.length === 1 
+      ? topKids[0] 
+      : topKids[Math.floor(Math.random() * topKids.length)];
+    
+    setWinner(selectedWinner);
+    recordSeating(selectedWinner.id, 'best-seat', 'preferred', 'chore');
   };
 
   if (isAuthenticated === null || membersLoading) {
@@ -162,7 +162,7 @@ const ChoreMode: React.FC = () => {
             <span className="text-primary font-semibold">Chore Mode</span>
           </div>
           <h1 className="text-3xl font-bold text-foreground mb-2">Earn Your Seat!</h1>
-          <p className="text-muted-foreground">Complete chores to get more points and better chances at the best seat.</p>
+          <p className="text-muted-foreground">Complete chores to earn points. The person with the most points wins!</p>
         </div>
 
         {/* Tabs */}
@@ -384,7 +384,7 @@ const ChoreMode: React.FC = () => {
                     Pick Today's Winner!
                   </Button>
                   <p className="text-sm text-muted-foreground">
-                    More points = better chances, but there's always a bit of luck!
+                    The person with the most points wins! Ties are broken randomly.
                   </p>
                 </>
               )}
