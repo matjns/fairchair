@@ -4,7 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ChairIcon } from '@/components/icons/ChairIcon';
 import { 
-  Sparkles, ArrowLeft, Users, Plus, Trash2, UserCheck, User, Edit2, Check, X
+  Sparkles, ArrowLeft, Users, Plus, Trash2, UserCheck, User, Edit2, Check, X,
+  Circle, Disc, Target, Star, Heart, Zap, Music, Gamepad2, Bike, Shirt,
+  type LucideIcon
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useFamilyMembers, FamilyMember } from '@/hooks/useFamilyMembers';
@@ -19,6 +21,25 @@ const AVATAR_COLORS = [
   { name: 'destructive', class: 'bg-destructive', label: 'Red' },
 ];
 
+const AVATAR_ICONS: { name: string; icon: LucideIcon; label: string }[] = [
+  { name: 'user', icon: User, label: 'Person' },
+  { name: 'circle', icon: Circle, label: 'Ball' },
+  { name: 'disc', icon: Disc, label: 'Disc' },
+  { name: 'target', icon: Target, label: 'Target' },
+  { name: 'star', icon: Star, label: 'Star' },
+  { name: 'heart', icon: Heart, label: 'Heart' },
+  { name: 'zap', icon: Zap, label: 'Lightning' },
+  { name: 'music', icon: Music, label: 'Music' },
+  { name: 'gamepad', icon: Gamepad2, label: 'Gaming' },
+  { name: 'bike', icon: Bike, label: 'Bike' },
+  { name: 'shirt', icon: Shirt, label: 'Sports' },
+];
+
+const getIconComponent = (iconName: string): LucideIcon => {
+  const found = AVATAR_ICONS.find(i => i.name === iconName);
+  return found?.icon || User;
+};
+
 const FamilyProfiles: React.FC = () => {
   const navigate = useNavigate();
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
@@ -30,6 +51,7 @@ const FamilyProfiles: React.FC = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editColor, setEditColor] = useState('');
+  const [editIcon, setEditIcon] = useState('user');
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -69,12 +91,14 @@ const FamilyProfiles: React.FC = () => {
     setEditingId(member.id);
     setEditName(member.name);
     setEditColor(member.avatar_color);
+    setEditIcon(member.avatar_icon || 'user');
   };
 
   const cancelEditing = () => {
     setEditingId(null);
     setEditName('');
     setEditColor('');
+    setEditIcon('user');
   };
 
   const saveEditing = async () => {
@@ -83,7 +107,11 @@ const FamilyProfiles: React.FC = () => {
     try {
       const { error } = await supabase
         .from('family_members')
-        .update({ name: editName.trim(), avatar_color: editColor })
+        .update({ 
+          name: editName.trim(), 
+          avatar_color: editColor,
+          avatar_icon: editIcon 
+        })
         .eq('id', editingId);
       
       if (error) throw error;
@@ -155,7 +183,9 @@ const FamilyProfiles: React.FC = () => {
             <p className="text-muted-foreground text-center py-4">No parents added yet.</p>
           ) : (
             <div className="space-y-3">
-              {parents.map(member => (
+              {parents.map(member => {
+                const IconComponent = getIconComponent(member.avatar_icon || 'user');
+                return (
                 <div key={member.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                   {editingId === member.id ? (
                     <div className="flex-1 space-y-3">
@@ -165,15 +195,36 @@ const FamilyProfiles: React.FC = () => {
                         placeholder="Name"
                         className="max-w-[200px]"
                       />
-                      <div className="flex gap-2">
-                        {AVATAR_COLORS.map(color => (
-                          <button
-                            key={color.name}
-                            className={`w-8 h-8 rounded-full ${color.class} ${editColor === color.name ? 'ring-2 ring-offset-2 ring-foreground' : ''}`}
-                            onClick={() => setEditColor(color.name)}
-                            title={color.label}
-                          />
-                        ))}
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-2">Color</p>
+                        <div className="flex gap-2">
+                          {AVATAR_COLORS.map(color => (
+                            <button
+                              key={color.name}
+                              className={`w-8 h-8 rounded-full ${color.class} ${editColor === color.name ? 'ring-2 ring-offset-2 ring-foreground' : ''}`}
+                              onClick={() => setEditColor(color.name)}
+                              title={color.label}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-2">Icon</p>
+                        <div className="flex flex-wrap gap-2">
+                          {AVATAR_ICONS.map(icon => {
+                            const Icon = icon.icon;
+                            return (
+                              <button
+                                key={icon.name}
+                                className={`w-8 h-8 rounded-lg bg-muted flex items-center justify-center ${editIcon === icon.name ? 'ring-2 ring-offset-2 ring-foreground' : ''}`}
+                                onClick={() => setEditIcon(icon.name)}
+                                title={icon.label}
+                              >
+                                <Icon className="w-4 h-4" />
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
                       <div className="flex gap-2">
                         <Button size="sm" onClick={saveEditing}>
@@ -188,9 +239,7 @@ const FamilyProfiles: React.FC = () => {
                     <>
                       <div className="flex items-center gap-3">
                         <div className={`w-10 h-10 rounded-full bg-${member.avatar_color} flex items-center justify-center`}>
-                          <span className="text-white font-bold text-lg">
-                            {member.name.charAt(0).toUpperCase()}
-                          </span>
+                          <IconComponent className="w-5 h-5 text-white" />
                         </div>
                         <div>
                           <p className="font-semibold text-foreground">{member.name}</p>
@@ -208,7 +257,7 @@ const FamilyProfiles: React.FC = () => {
                     </>
                   )}
                 </div>
-              ))}
+              )})}
             </div>
           )}
         </div>
@@ -224,7 +273,9 @@ const FamilyProfiles: React.FC = () => {
             <p className="text-muted-foreground text-center py-4">No kids added yet.</p>
           ) : (
             <div className="space-y-3">
-              {kids.map(member => (
+              {kids.map(member => {
+                const IconComponent = getIconComponent(member.avatar_icon || 'user');
+                return (
                 <div key={member.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                   {editingId === member.id ? (
                     <div className="flex-1 space-y-3">
@@ -234,15 +285,36 @@ const FamilyProfiles: React.FC = () => {
                         placeholder="Name"
                         className="max-w-[200px]"
                       />
-                      <div className="flex gap-2">
-                        {AVATAR_COLORS.map(color => (
-                          <button
-                            key={color.name}
-                            className={`w-8 h-8 rounded-full ${color.class} ${editColor === color.name ? 'ring-2 ring-offset-2 ring-foreground' : ''}`}
-                            onClick={() => setEditColor(color.name)}
-                            title={color.label}
-                          />
-                        ))}
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-2">Color</p>
+                        <div className="flex gap-2">
+                          {AVATAR_COLORS.map(color => (
+                            <button
+                              key={color.name}
+                              className={`w-8 h-8 rounded-full ${color.class} ${editColor === color.name ? 'ring-2 ring-offset-2 ring-foreground' : ''}`}
+                              onClick={() => setEditColor(color.name)}
+                              title={color.label}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-2">Icon</p>
+                        <div className="flex flex-wrap gap-2">
+                          {AVATAR_ICONS.map(icon => {
+                            const Icon = icon.icon;
+                            return (
+                              <button
+                                key={icon.name}
+                                className={`w-8 h-8 rounded-lg bg-muted flex items-center justify-center ${editIcon === icon.name ? 'ring-2 ring-offset-2 ring-foreground' : ''}`}
+                                onClick={() => setEditIcon(icon.name)}
+                                title={icon.label}
+                              >
+                                <Icon className="w-4 h-4" />
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
                       <div className="flex gap-2">
                         <Button size="sm" onClick={saveEditing}>
@@ -257,9 +329,7 @@ const FamilyProfiles: React.FC = () => {
                     <>
                       <div className="flex items-center gap-3">
                         <div className={`w-10 h-10 rounded-full bg-${member.avatar_color} flex items-center justify-center`}>
-                          <span className="text-white font-bold text-lg">
-                            {member.name.charAt(0).toUpperCase()}
-                          </span>
+                          <IconComponent className="w-5 h-5 text-white" />
                         </div>
                         <div>
                           <p className="font-semibold text-foreground">{member.name}</p>
@@ -282,7 +352,7 @@ const FamilyProfiles: React.FC = () => {
                     </>
                   )}
                 </div>
-              ))}
+              )})}
             </div>
           )}
         </div>

@@ -86,6 +86,7 @@ export type Database = {
       family_members: {
         Row: {
           avatar_color: string | null
+          avatar_icon: string | null
           created_at: string
           id: string
           is_parent: boolean
@@ -96,6 +97,7 @@ export type Database = {
         }
         Insert: {
           avatar_color?: string | null
+          avatar_icon?: string | null
           created_at?: string
           id?: string
           is_parent?: boolean
@@ -106,6 +108,7 @@ export type Database = {
         }
         Update: {
           avatar_color?: string | null
+          avatar_icon?: string | null
           created_at?: string
           id?: string
           is_parent?: boolean

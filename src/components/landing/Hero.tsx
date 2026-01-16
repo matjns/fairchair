@@ -1,12 +1,28 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { CarIcon } from '@/components/icons/CarIcon';
 import { ChairIcon } from '@/components/icons/ChairIcon';
 import { ArrowRight, Users, Sparkles, Car, UserCircle, ListChecks, Brain, Shuffle, LucideIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
 
 export const Hero: React.FC = () => {
   const navigate = useNavigate();
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setIsLoggedIn(!!session?.user);
+    };
+    checkAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setIsLoggedIn(!!session?.user);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden px-4 py-20">
@@ -51,31 +67,62 @@ export const Hero: React.FC = () => {
           Use quizzes, track chores, and let everyone get their turn at the window seat!
         </p>
 
-        {/* CTA Buttons */}
-        <div 
-          className="relative z-50 flex flex-col sm:flex-row items-center justify-center gap-4 mb-16 animate-fade-in-up"
-          style={{ animationDelay: '0.3s' }}
-        >
-          <Button 
-            type="button"
-            variant="hero" 
-            size="xl"
-            onClick={() => navigate('/auth')}
-            className="group cursor-pointer"
+        {/* CTA Buttons - Only show when not logged in */}
+        {isLoggedIn === false && (
+          <div 
+            className="relative z-50 flex flex-col sm:flex-row items-center justify-center gap-4 mb-16 animate-fade-in-up"
+            style={{ animationDelay: '0.3s' }}
           >
-            Get Started Free
-            <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-          </Button>
-          <Button 
-            type="button"
-            variant="outline" 
-            size="xl"
-            onClick={() => navigate('/demo')}
-            className="cursor-pointer"
+            <Button 
+              type="button"
+              variant="hero" 
+              size="xl"
+              onClick={() => navigate('/auth')}
+              className="group cursor-pointer"
+            >
+              Get Started Free
+              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+            </Button>
+            <Button 
+              type="button"
+              variant="outline" 
+              size="xl"
+              onClick={() => navigate('/demo')}
+              className="cursor-pointer"
+            >
+              See How It Works
+            </Button>
+          </div>
+        )}
+
+        {/* Show different CTA when logged in */}
+        {isLoggedIn === true && (
+          <div 
+            className="relative z-50 flex flex-col sm:flex-row items-center justify-center gap-4 mb-16 animate-fade-in-up"
+            style={{ animationDelay: '0.3s' }}
           >
-            See How It Works
-          </Button>
-        </div>
+            <Button 
+              type="button"
+              variant="hero" 
+              size="xl"
+              onClick={() => navigate('/quiz-mode')}
+              className="group cursor-pointer"
+            >
+              Start a Quiz Battle
+              <Brain className="w-5 h-5 ml-2" />
+            </Button>
+            <Button 
+              type="button"
+              variant="outline" 
+              size="xl"
+              onClick={() => navigate('/family-profiles')}
+              className="cursor-pointer"
+            >
+              <Users className="w-5 h-5 mr-2" />
+              Manage Family
+            </Button>
+          </div>
+        )}
 
         {/* Feature pills */}
         <div 

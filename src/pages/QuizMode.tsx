@@ -103,7 +103,7 @@ const QuizMode: React.FC = () => {
   }, [navigate]);
 
   const fetchQuestion = async (topic: string, difficulty: Difficulty): Promise<QuizQuestion | null> => {
-    // Get fresh user history to ensure we have the latest
+    // Get fresh user history to ensure we have the latest - CRITICAL for preventing repeats
     const { data: { session } } = await supabase.auth.getSession();
     let freshHistoryIds: string[] = [];
     
@@ -121,12 +121,12 @@ const QuizMode: React.FC = () => {
     // Use the ref for immediate/accurate session tracking (state is async)
     const sessionUsedIds = Array.from(usedQuestionIdsRef.current);
     
-    // Combine session-used IDs with fresh permanent history
+    // Combine ALL used IDs - session + permanent history
     const excludeIds = [...new Set([...sessionUsedIds, ...freshHistoryIds])];
     
-    console.log('Excluding question IDs:', excludeIds.length, excludeIds);
+    console.log('Excluding question IDs:', excludeIds.length);
     
-    // Build query excluding already used questions
+    // FIRST: Try to get questions matching topic AND difficulty
     let query = supabase
       .from('quiz_questions')
       .select('*')
@@ -139,32 +139,49 @@ const QuizMode: React.FC = () => {
     
     const { data, error } = await query;
     
-    console.log('Query result:', data?.length, 'questions found');
-    
-    if (error || !data || data.length === 0) {
-      // Fallback: try any difficulty if selected one has no questions
-      let fallbackQuery = supabase
-        .from('quiz_questions')
-        .select('*')
-        .eq('topic', topic);
-      
-      if (excludeIds.length > 0) {
-        fallbackQuery = fallbackQuery.not('id', 'in', `(${excludeIds.join(',')})`);
-      }
-      
-      const { data: fallbackData, error: fallbackError } = await fallbackQuery;
-      
-      if (fallbackError || !fallbackData || fallbackData.length === 0) {
-        console.error('No more questions available for this topic');
-        return null;
-      }
-      
-      const randomQuestion = fallbackData[Math.floor(Math.random() * fallbackData.length)];
+    if (!error && data && data.length > 0) {
+      const randomQuestion = data[Math.floor(Math.random() * data.length)];
+      console.log('Found question (exact match):', randomQuestion.id);
       return randomQuestion as QuizQuestion;
     }
     
-    const randomQuestion = data[Math.floor(Math.random() * data.length)];
-    return randomQuestion as QuizQuestion;
+    // FALLBACK 1: Try any difficulty for this topic
+    let fallbackQuery = supabase
+      .from('quiz_questions')
+      .select('*')
+      .eq('topic', topic);
+    
+    if (excludeIds.length > 0) {
+      fallbackQuery = fallbackQuery.not('id', 'in', `(${excludeIds.join(',')})`);
+    }
+    
+    const { data: fallbackData, error: fallbackError } = await fallbackQuery;
+    
+    if (!fallbackError && fallbackData && fallbackData.length > 0) {
+      const randomQuestion = fallbackData[Math.floor(Math.random() * fallbackData.length)];
+      console.log('Found question (any difficulty):', randomQuestion.id);
+      return randomQuestion as QuizQuestion;
+    }
+    
+    // FALLBACK 2: Try ANY topic (user exhausted this topic)
+    let anyTopicQuery = supabase
+      .from('quiz_questions')
+      .select('*');
+    
+    if (excludeIds.length > 0) {
+      anyTopicQuery = anyTopicQuery.not('id', 'in', `(${excludeIds.join(',')})`);
+    }
+    
+    const { data: anyData, error: anyError } = await anyTopicQuery;
+    
+    if (!anyError && anyData && anyData.length > 0) {
+      const randomQuestion = anyData[Math.floor(Math.random() * anyData.length)];
+      console.log('Found question (any topic):', randomQuestion.id);
+      return randomQuestion as QuizQuestion;
+    }
+    
+    console.error('No more questions available at all!');
+    return null;
   };
 
   const recordQuestionForUser = async (questionId: string) => {
