@@ -9,6 +9,7 @@ import Demo from "./pages/Demo";
 import ChoreMode from "./pages/ChoreMode";
 import QuizMode from "./pages/QuizMode";
 import RandomMode from "./pages/RandomMode";
+import FamilyProfiles from "./pages/FamilyProfiles";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -26,6 +27,7 @@ const App = () => (
           <Route path="/chore-mode" element={<ChoreMode />} />
           <Route path="/quiz-mode" element={<QuizMode />} />
           <Route path="/random-mode" element={<RandomMode />} />
+          <Route path="/family-profiles" element={<FamilyProfiles />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
