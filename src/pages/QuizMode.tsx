@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ChairIcon } from '@/components/icons/ChairIcon';
@@ -64,6 +64,9 @@ const QuizMode: React.FC = () => {
   const [questionStartTime, setQuestionStartTime] = useState<number>(0);
   const [usedQuestionIds, setUsedQuestionIds] = useState<string[]>([]);
   const [userHistoryIds, setUserHistoryIds] = useState<string[]>([]);
+  
+  // Use ref for immediate tracking (state updates are async and cause race conditions)
+  const usedQuestionIdsRef = useRef<Set<string>>(new Set());
 
   const { familyMembers, loading, addFamilyMember } = useFamilyMembers();
   const { recordSeating } = useSeatingHistory();
@@ -115,8 +118,11 @@ const QuizMode: React.FC = () => {
       }
     }
     
+    // Use the ref for immediate/accurate session tracking (state is async)
+    const sessionUsedIds = Array.from(usedQuestionIdsRef.current);
+    
     // Combine session-used IDs with fresh permanent history
-    const excludeIds = [...new Set([...usedQuestionIds, ...freshHistoryIds])];
+    const excludeIds = [...new Set([...sessionUsedIds, ...freshHistoryIds])];
     
     console.log('Excluding question IDs:', excludeIds.length, excludeIds);
     
@@ -179,12 +185,11 @@ const QuizMode: React.FC = () => {
     const question = await fetchQuestion(selectedTopic, selectedDifficulty);
     if (!question) return;
     
-    // FIRST: Add to session tracking immediately to prevent race conditions
-    setUsedQuestionIds(prev => {
-      // Double-check it's not already there
-      if (prev.includes(question.id)) return prev;
-      return [...prev, question.id];
-    });
+    // IMMEDIATELY add to ref to prevent race conditions (ref is synchronous)
+    usedQuestionIdsRef.current.add(question.id);
+    
+    // Also update state for UI consistency
+    setUsedQuestionIds(prev => [...prev, question.id]);
     
     setCurrentQuestion(question);
     
@@ -347,6 +352,7 @@ const QuizMode: React.FC = () => {
     setCurrentQuestion(null);
     setWinner(null);
     setUsedQuestionIds([]);
+    usedQuestionIdsRef.current.clear(); // Also clear the ref
   };
 
   if (isAuthenticated === null || loading) {
