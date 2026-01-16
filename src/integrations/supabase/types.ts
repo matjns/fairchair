@@ -205,6 +205,35 @@ export type Database = {
           },
         ]
       }
+      user_question_history: {
+        Row: {
+          answered_at: string
+          id: string
+          question_id: string
+          user_id: string
+        }
+        Insert: {
+          answered_at?: string
+          id?: string
+          question_id: string
+          user_id: string
+        }
+        Update: {
+          answered_at?: string
+          id?: string
+          question_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_question_history_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "quiz_questions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vehicles: {
         Row: {
           created_at: string
