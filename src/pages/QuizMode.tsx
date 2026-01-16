@@ -99,9 +99,26 @@ const QuizMode: React.FC = () => {
     checkAuth();
   }, [navigate]);
 
-  const fetchQuestion = async (topic: string, difficulty: Difficulty) => {
-    // Combine session-used IDs with user's permanent history
-    const excludeIds = [...new Set([...usedQuestionIds, ...userHistoryIds])];
+  const fetchQuestion = async (topic: string, difficulty: Difficulty): Promise<QuizQuestion | null> => {
+    // Get fresh user history to ensure we have the latest
+    const { data: { session } } = await supabase.auth.getSession();
+    let freshHistoryIds: string[] = [];
+    
+    if (session?.user) {
+      const { data: historyData } = await supabase
+        .from('user_question_history')
+        .select('question_id')
+        .eq('user_id', session.user.id);
+      
+      if (historyData) {
+        freshHistoryIds = historyData.map(h => h.question_id);
+      }
+    }
+    
+    // Combine session-used IDs with fresh permanent history
+    const excludeIds = [...new Set([...usedQuestionIds, ...freshHistoryIds])];
+    
+    console.log('Excluding question IDs:', excludeIds.length, excludeIds);
     
     // Build query excluding already used questions
     let query = supabase
@@ -115,6 +132,8 @@ const QuizMode: React.FC = () => {
     }
     
     const { data, error } = await query;
+    
+    console.log('Query result:', data?.length, 'questions found');
     
     if (error || !data || data.length === 0) {
       // Fallback: try any difficulty if selected one has no questions
@@ -160,8 +179,14 @@ const QuizMode: React.FC = () => {
     const question = await fetchQuestion(selectedTopic, selectedDifficulty);
     if (!question) return;
     
+    // FIRST: Add to session tracking immediately to prevent race conditions
+    setUsedQuestionIds(prev => {
+      // Double-check it's not already there
+      if (prev.includes(question.id)) return prev;
+      return [...prev, question.id];
+    });
+    
     setCurrentQuestion(question);
-    setUsedQuestionIds(prev => [...prev, question.id]);
     
     // Record this question permanently so it never repeats for this user
     await recordQuestionForUser(question.id);
@@ -183,7 +208,8 @@ const QuizMode: React.FC = () => {
     setCurrentRound(1);
     setPlayer1Score(0);
     setPlayer2Score(0);
-    setUsedQuestionIds([]);
+    // Keep usedQuestionIds - don't reset! This tracks questions used in this session
+    // Combined with userHistoryIds, this prevents all repeats
     setWinner(null);
     await startRound();
   };
