@@ -2,7 +2,7 @@ import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ChairIcon } from '@/components/icons/ChairIcon';
-import { Sparkles, Menu, X } from 'lucide-react';
+import { Sparkles, Menu, X, Users } from 'lucide-react';
 import { useState } from 'react';
 
 export const Navbar: React.FC = () => {
@@ -32,6 +32,13 @@ export const Navbar: React.FC = () => {
             >
               How It Works
             </Link>
+            <Link 
+              to="/family-profiles" 
+              className="text-muted-foreground hover:text-foreground transition-colors font-medium flex items-center gap-1"
+            >
+              <Users className="w-4 h-4" />
+              Family
+            </Link>
             <Button variant="ghost" onClick={() => navigate('/auth')}>
               Log In
             </Button>
@@ -59,6 +66,14 @@ export const Navbar: React.FC = () => {
                 onClick={() => setIsMenuOpen(false)}
               >
                 How It Works
+              </Link>
+              <Link 
+                to="/family-profiles" 
+                className="text-muted-foreground hover:text-foreground transition-colors font-medium py-2 flex items-center gap-1"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                <Users className="w-4 h-4" />
+                Family Profiles
               </Link>
               <Button variant="ghost" onClick={() => { navigate('/auth'); setIsMenuOpen(false); }}>
                 Log In

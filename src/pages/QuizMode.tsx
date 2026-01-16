@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ChairIcon } from '@/components/icons/ChairIcon';
 import { 
-  Sparkles, ArrowLeft, Brain, Clock, Users, Trophy, Zap, Check
+  Sparkles, ArrowLeft, Brain, Clock, Users, Trophy, Zap, Check, ChevronRight
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useFamilyMembers, FamilyMember } from '@/hooks/useFamilyMembers';
@@ -22,16 +22,23 @@ interface QuizQuestion {
   difficulty: string;
 }
 
-type QuizStep = 'setup' | 'select-players' | 'select-difficulty' | 'select-topic' | 'countdown' | 'question' | 'result';
+type QuizStep = 'setup' | 'select-players' | 'select-difficulty' | 'select-length' | 'select-topic' | 'countdown' | 'question-p1' | 'pass-device' | 'question-p2' | 'round-result' | 'final-result';
 type Difficulty = 'easy' | 'medium' | 'hard';
 
-const TOPICS = ['Science', 'Math', 'Geography', 'History', 'Animals', 'Sports'];
+const TOPICS = ['Science', 'Math', 'Geography', 'History', 'Animals', 'Sports', 'Presidents'];
 const COUNTDOWN_SECONDS = 3;
 const DIFFICULTY_CONFIG: Record<Difficulty, { time: number; label: string; color: string }> = {
-  easy: { time: 30, label: 'Easy', color: 'bg-success' },
-  medium: { time: 20, label: 'Medium', color: 'bg-warning' },
-  hard: { time: 15, label: 'Hard', color: 'bg-destructive' },
+  easy: { time: 45, label: 'Easy', color: 'bg-success' },
+  medium: { time: 30, label: 'Medium', color: 'bg-warning' },
+  hard: { time: 20, label: 'Hard', color: 'bg-destructive' },
 };
+
+const QUIZ_LENGTH_OPTIONS = [
+  { rounds: 1, label: '1 Question', description: 'Quick battle' },
+  { rounds: 3, label: '3 Questions', description: 'Best of 3' },
+  { rounds: 5, label: '5 Questions', description: 'Best of 5' },
+  { rounds: 10, label: '10 Questions', description: 'Marathon' },
+];
 
 const QuizMode: React.FC = () => {
   const navigate = useNavigate();
@@ -39,18 +46,23 @@ const QuizMode: React.FC = () => {
   const [step, setStep] = useState<QuizStep>('setup');
   const [player1, setPlayer1] = useState<FamilyMember | null>(null);
   const [player2, setPlayer2] = useState<FamilyMember | null>(null);
-  const [selectedDifficulty, setSelectedDifficulty] = useState<Difficulty>('medium');
+  const [selectedDifficulty, setSelectedDifficulty] = useState<Difficulty>('hard');
   const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
+  const [quizLength, setQuizLength] = useState<number>(3);
+  const [currentRound, setCurrentRound] = useState<number>(1);
   const [currentQuestion, setCurrentQuestion] = useState<QuizQuestion | null>(null);
   const [shuffledAnswers, setShuffledAnswers] = useState<string[]>([]);
   const [countdown, setCountdown] = useState(COUNTDOWN_SECONDS);
-  const [timeLeft, setTimeLeft] = useState(DIFFICULTY_CONFIG.medium.time);
+  const [timeLeft, setTimeLeft] = useState(DIFFICULTY_CONFIG.hard.time);
   const [player1Answer, setPlayer1Answer] = useState<string | null>(null);
   const [player2Answer, setPlayer2Answer] = useState<string | null>(null);
   const [player1Time, setPlayer1Time] = useState<number | null>(null);
   const [player2Time, setPlayer2Time] = useState<number | null>(null);
+  const [player1Score, setPlayer1Score] = useState<number>(0);
+  const [player2Score, setPlayer2Score] = useState<number>(0);
   const [winner, setWinner] = useState<FamilyMember | null>(null);
   const [questionStartTime, setQuestionStartTime] = useState<number>(0);
+  const [usedQuestionIds, setUsedQuestionIds] = useState<string[]>([]);
 
   const { familyMembers, loading, addFamilyMember } = useFamilyMembers();
   const { recordSeating } = useSeatingHistory();
@@ -69,18 +81,31 @@ const QuizMode: React.FC = () => {
   }, [navigate]);
 
   const fetchQuestion = async (topic: string, difficulty: Difficulty) => {
-    const { data, error } = await supabase
+    // Build query excluding already used questions
+    let query = supabase
       .from('quiz_questions')
       .select('*')
       .eq('topic', topic)
       .eq('difficulty', difficulty);
     
+    if (usedQuestionIds.length > 0) {
+      query = query.not('id', 'in', `(${usedQuestionIds.join(',')})`);
+    }
+    
+    const { data, error } = await query;
+    
     if (error || !data || data.length === 0) {
       // Fallback: try any difficulty if selected one has no questions
-      const { data: fallbackData, error: fallbackError } = await supabase
+      let fallbackQuery = supabase
         .from('quiz_questions')
         .select('*')
         .eq('topic', topic);
+      
+      if (usedQuestionIds.length > 0) {
+        fallbackQuery = fallbackQuery.not('id', 'in', `(${usedQuestionIds.join(',')})`);
+      }
+      
+      const { data: fallbackData, error: fallbackError } = await fallbackQuery;
       
       if (fallbackError || !fallbackData || fallbackData.length === 0) {
         console.error('Failed to fetch question:', error);
@@ -95,13 +120,14 @@ const QuizMode: React.FC = () => {
     return randomQuestion as QuizQuestion;
   };
 
-  const startQuiz = async () => {
+  const startRound = async () => {
     if (!selectedTopic) return;
     
     const question = await fetchQuestion(selectedTopic, selectedDifficulty);
     if (!question) return;
     
     setCurrentQuestion(question);
+    setUsedQuestionIds(prev => [...prev, question.id]);
     
     // Shuffle answers
     const allAnswers = [question.correct_answer, ...question.wrong_answers];
@@ -112,9 +138,17 @@ const QuizMode: React.FC = () => {
     setPlayer2Answer(null);
     setPlayer1Time(null);
     setPlayer2Time(null);
-    setWinner(null);
     setCountdown(COUNTDOWN_SECONDS);
     setStep('countdown');
+  };
+
+  const startQuiz = async () => {
+    setCurrentRound(1);
+    setPlayer1Score(0);
+    setPlayer2Score(0);
+    setUsedQuestionIds([]);
+    setWinner(null);
+    await startRound();
   };
 
   // Countdown effect
@@ -122,7 +156,7 @@ const QuizMode: React.FC = () => {
     if (step !== 'countdown') return;
     
     if (countdown <= 0) {
-      setStep('question');
+      setStep('question-p1');
       setTimeLeft(DIFFICULTY_CONFIG[selectedDifficulty].time);
       setQuestionStartTime(Date.now());
       return;
@@ -132,73 +166,124 @@ const QuizMode: React.FC = () => {
     return () => clearTimeout(timer);
   }, [step, countdown, selectedDifficulty]);
 
-  // Question timer effect
+  // Question timer effect for Player 1
   useEffect(() => {
-    if (step !== 'question') return;
+    if (step !== 'question-p1') return;
     
-    if (timeLeft <= 0 || (player1Answer && player2Answer)) {
-      determineWinner();
+    if (timeLeft <= 0) {
+      // Time ran out for player 1
+      setPlayer1Answer('__timeout__');
+      setPlayer1Time(DIFFICULTY_CONFIG[selectedDifficulty].time * 1000);
+      setStep('pass-device');
+      return;
+    }
+    
+    if (player1Answer) {
+      setStep('pass-device');
       return;
     }
     
     const timer = setTimeout(() => setTimeLeft(t => t - 1), 1000);
     return () => clearTimeout(timer);
-  }, [step, timeLeft, player1Answer, player2Answer]);
+  }, [step, timeLeft, player1Answer, selectedDifficulty]);
 
-  const handleAnswer = (player: 1 | 2, answer: string) => {
-    const answerTime = Date.now() - questionStartTime;
+  // Question timer effect for Player 2
+  useEffect(() => {
+    if (step !== 'question-p2') return;
     
-    if (player === 1 && !player1Answer) {
-      setPlayer1Answer(answer);
-      setPlayer1Time(answerTime);
-    } else if (player === 2 && !player2Answer) {
-      setPlayer2Answer(answer);
-      setPlayer2Time(answerTime);
+    if (timeLeft <= 0) {
+      // Time ran out for player 2
+      setPlayer2Answer('__timeout__');
+      setPlayer2Time(DIFFICULTY_CONFIG[selectedDifficulty].time * 1000);
+      determineRoundWinner();
+      return;
     }
+    
+    if (player2Answer) {
+      determineRoundWinner();
+      return;
+    }
+    
+    const timer = setTimeout(() => setTimeLeft(t => t - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [step, timeLeft, player2Answer, selectedDifficulty]);
+
+  const handlePlayer1Answer = (answer: string) => {
+    const answerTime = Date.now() - questionStartTime;
+    setPlayer1Answer(answer);
+    setPlayer1Time(answerTime);
   };
 
-  const determineWinner = useCallback(() => {
+  const handlePlayer2Answer = (answer: string) => {
+    const answerTime = Date.now() - questionStartTime;
+    setPlayer2Answer(answer);
+    setPlayer2Time(answerTime);
+  };
+
+  const startPlayer2Turn = () => {
+    setTimeLeft(DIFFICULTY_CONFIG[selectedDifficulty].time);
+    setQuestionStartTime(Date.now());
+    setStep('question-p2');
+  };
+
+  const determineRoundWinner = useCallback(() => {
     if (!currentQuestion || !player1 || !player2) return;
     
     const correct = currentQuestion.correct_answer;
     const p1Correct = player1Answer === correct;
     const p2Correct = player2Answer === correct;
     
-    let quizWinner: FamilyMember | null = null;
-    
-    if (p1Correct && p2Correct) {
-      // Both correct - faster wins
-      quizWinner = (player1Time || Infinity) < (player2Time || Infinity) ? player1 : player2;
-    } else if (p1Correct) {
-      quizWinner = player1;
-    } else if (p2Correct) {
-      quizWinner = player2;
-    } else {
-      // Neither correct - faster wrong answer loses, so slower wins
-      quizWinner = (player1Time || 0) > (player2Time || 0) ? player1 : player2;
+    // Update scores
+    if (p1Correct) {
+      setPlayer1Score(prev => prev + 1);
+    }
+    if (p2Correct) {
+      setPlayer2Score(prev => prev + 1);
     }
     
-    setWinner(quizWinner);
-    if (quizWinner) {
-      recordSeating(quizWinner.id, 'best-seat', 'preferred', 'quiz');
-    }
-    setStep('result');
-  }, [currentQuestion, player1, player2, player1Answer, player2Answer, player1Time, player2Time, recordSeating]);
+    setStep('round-result');
+  }, [currentQuestion, player1, player2, player1Answer, player2Answer]);
 
-  useEffect(() => {
-    if (step === 'question' && player1Answer && player2Answer) {
-      determineWinner();
+  const proceedToNextRound = async () => {
+    if (currentRound >= quizLength) {
+      // Determine final winner
+      let finalWinner: FamilyMember | null = null;
+      const p1FinalScore = player1Score + (player1Answer === currentQuestion?.correct_answer ? 1 : 0);
+      const p2FinalScore = player2Score + (player2Answer === currentQuestion?.correct_answer ? 1 : 0);
+      
+      if (p1FinalScore > p2FinalScore) {
+        finalWinner = player1;
+      } else if (p2FinalScore > p1FinalScore) {
+        finalWinner = player2;
+      } else {
+        // Tie - use total time as tiebreaker (lower is better)
+        finalWinner = (player1Time || Infinity) < (player2Time || Infinity) ? player1 : player2;
+      }
+      
+      setWinner(finalWinner);
+      if (finalWinner) {
+        recordSeating(finalWinner.id, 'best-seat', 'preferred', 'quiz');
+      }
+      setStep('final-result');
+    } else {
+      setCurrentRound(prev => prev + 1);
+      await startRound();
     }
-  }, [step, player1Answer, player2Answer, determineWinner]);
+  };
 
   const resetQuiz = () => {
     setStep('setup');
     setPlayer1(null);
     setPlayer2(null);
     setSelectedTopic(null);
-    setSelectedDifficulty('medium');
+    setSelectedDifficulty('hard');
+    setQuizLength(3);
+    setCurrentRound(1);
+    setPlayer1Score(0);
+    setPlayer2Score(0);
     setCurrentQuestion(null);
     setWinner(null);
+    setUsedQuestionIds([]);
   };
 
   if (isAuthenticated === null || loading) {
@@ -213,6 +298,10 @@ const QuizMode: React.FC = () => {
   }
 
   const answerTimeSeconds = DIFFICULTY_CONFIG[selectedDifficulty].time;
+
+  // Calculate current scores for display
+  const displayP1Score = player1Score + (step === 'round-result' && player1Answer === currentQuestion?.correct_answer ? 1 : 0);
+  const displayP2Score = player2Score + (step === 'round-result' && player2Answer === currentQuestion?.correct_answer ? 1 : 0);
 
   return (
     <div className="min-h-screen bg-background px-4 py-12">
@@ -246,7 +335,7 @@ const QuizMode: React.FC = () => {
             <span className="text-accent font-semibold">Quiz Mode</span>
           </div>
           <h1 className="text-3xl font-bold text-foreground mb-2">Head-to-Head Trivia!</h1>
-          <p className="text-muted-foreground">Answer faster than your opponent to win the best seat.</p>
+          <p className="text-muted-foreground">Take turns answering questions to win the best seat.</p>
         </div>
 
         <div className="card-elevated p-6">
@@ -341,11 +430,43 @@ const QuizMode: React.FC = () => {
                   <Button
                     key={difficulty}
                     variant={selectedDifficulty === difficulty ? 'default' : 'outline'}
-                    className={`h-20 flex-col gap-1 ${selectedDifficulty === difficulty ? '' : ''}`}
+                    className={`h-20 flex-col gap-1`}
                     onClick={() => setSelectedDifficulty(difficulty)}
                   >
                     <span className="text-lg font-bold capitalize">{difficulty}</span>
                     <span className="text-xs opacity-70">{DIFFICULTY_CONFIG[difficulty].time}s timer</span>
+                  </Button>
+                ))}
+              </div>
+
+              <Button
+                variant="hero"
+                className="w-full"
+                onClick={() => setStep('select-length')}
+              >
+                Next: Choose Quiz Length
+              </Button>
+            </div>
+          )}
+
+          {/* Select Quiz Length */}
+          {step === 'select-length' && (
+            <div className="space-y-6">
+              <h2 className="text-lg font-semibold text-foreground text-center">How Long?</h2>
+              <p className="text-muted-foreground text-center">
+                {player1?.name} vs {player2?.name} • <span className="capitalize">{selectedDifficulty}</span>
+              </p>
+              
+              <div className="grid grid-cols-2 gap-3">
+                {QUIZ_LENGTH_OPTIONS.map(option => (
+                  <Button
+                    key={option.rounds}
+                    variant={quizLength === option.rounds ? 'default' : 'outline'}
+                    className="h-20 flex-col gap-1"
+                    onClick={() => setQuizLength(option.rounds)}
+                  >
+                    <span className="text-lg font-bold">{option.label}</span>
+                    <span className="text-xs opacity-70">{option.description}</span>
                   </Button>
                 ))}
               </div>
@@ -365,7 +486,7 @@ const QuizMode: React.FC = () => {
             <div className="space-y-6">
               <h2 className="text-lg font-semibold text-foreground text-center">Choose a Topic</h2>
               <p className="text-muted-foreground text-center">
-                {player1?.name} vs {player2?.name} • <span className="capitalize">{selectedDifficulty}</span> difficulty
+                {player1?.name} vs {player2?.name} • <span className="capitalize">{selectedDifficulty}</span> • {quizLength} questions
               </p>
               
               <div className="grid grid-cols-2 gap-3">
@@ -396,22 +517,25 @@ const QuizMode: React.FC = () => {
           {/* Countdown */}
           {step === 'countdown' && (
             <div className="text-center py-12">
-              <p className="text-muted-foreground mb-4">Get Ready!</p>
+              <p className="text-muted-foreground mb-2">Round {currentRound} of {quizLength}</p>
+              <p className="text-lg font-semibold text-primary mb-4">{player1?.name}'s Turn</p>
               <div className="text-8xl font-bold text-primary animate-pulse">
                 {countdown}
               </div>
-              <p className="text-muted-foreground mt-4">
-                {player1?.name} vs {player2?.name}
-              </p>
-              <p className="text-sm text-muted-foreground mt-2">
+              <p className="text-sm text-muted-foreground mt-4">
                 <span className="capitalize">{selectedDifficulty}</span> • {answerTimeSeconds} seconds to answer
               </p>
             </div>
           )}
 
-          {/* Question */}
-          {step === 'question' && currentQuestion && (
+          {/* Player 1 Question */}
+          {step === 'question-p1' && currentQuestion && (
             <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Round {currentRound}/{quizLength}</span>
+                <span className="text-sm font-semibold text-primary">{player1?.name}'s Turn</span>
+              </div>
+
               <div className="text-center">
                 <div className="flex items-center justify-center gap-2 mb-2">
                   <Clock className="w-5 h-5 text-warning" />
@@ -432,60 +556,153 @@ const QuizMode: React.FC = () => {
                 <h3 className="text-xl font-semibold text-foreground">{currentQuestion.question}</h3>
               </div>
 
-              <div className="grid grid-cols-2 gap-8">
-                {/* Player 1 answers */}
-                <div className="space-y-2">
-                  <p className="text-sm font-semibold text-center text-primary">{player1?.name}</p>
-                  {player1Answer ? (
-                    <div className="p-4 bg-primary/10 rounded-xl text-center">
-                      <Check className="w-6 h-6 text-primary mx-auto" />
-                      <p className="text-sm text-muted-foreground mt-1">Answered!</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {shuffledAnswers.map((answer, i) => (
-                        <Button
-                          key={i}
-                          variant="outline"
-                          className="w-full text-sm h-auto py-2 whitespace-normal"
-                          onClick={() => handleAnswer(1, answer)}
-                        >
-                          {answer}
-                        </Button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Player 2 answers */}
-                <div className="space-y-2">
-                  <p className="text-sm font-semibold text-center text-accent">{player2?.name}</p>
-                  {player2Answer ? (
-                    <div className="p-4 bg-accent/10 rounded-xl text-center">
-                      <Check className="w-6 h-6 text-accent mx-auto" />
-                      <p className="text-sm text-muted-foreground mt-1">Answered!</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {shuffledAnswers.map((answer, i) => (
-                        <Button
-                          key={i}
-                          variant="outline"
-                          className="w-full text-sm h-auto py-2 whitespace-normal"
-                          onClick={() => handleAnswer(2, answer)}
-                        >
-                          {answer}
-                        </Button>
-                      ))}
-                    </div>
-                  )}
-                </div>
+              <div className="space-y-2">
+                {shuffledAnswers.map((answer, i) => (
+                  <Button
+                    key={i}
+                    variant="outline"
+                    className="w-full text-left justify-start h-auto py-3 whitespace-normal"
+                    onClick={() => handlePlayer1Answer(answer)}
+                  >
+                    {answer}
+                  </Button>
+                ))}
               </div>
             </div>
           )}
 
-          {/* Result */}
-          {step === 'result' && currentQuestion && (
+          {/* Pass Device Screen */}
+          {step === 'pass-device' && (
+            <div className="text-center py-12 space-y-6">
+              <div className="inline-flex items-center justify-center w-20 h-20 bg-accent/10 rounded-full mb-4">
+                <ChevronRight className="w-10 h-10 text-accent" />
+              </div>
+              <div>
+                <p className="text-muted-foreground mb-2">Pass the device to:</p>
+                <h2 className="text-4xl font-bold text-accent">{player2?.name}</h2>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Don't show {player2?.name} what {player1?.name} answered!
+              </p>
+              <Button
+                variant="hero"
+                className="w-full"
+                onClick={startPlayer2Turn}
+              >
+                {player2?.name} is Ready!
+              </Button>
+            </div>
+          )}
+
+          {/* Player 2 Question */}
+          {step === 'question-p2' && currentQuestion && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Round {currentRound}/{quizLength}</span>
+                <span className="text-sm font-semibold text-accent">{player2?.name}'s Turn</span>
+              </div>
+
+              <div className="text-center">
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <Clock className="w-5 h-5 text-warning" />
+                  <span className={`text-2xl font-bold ${timeLeft <= 5 ? 'text-destructive animate-pulse' : 'text-warning'}`}>
+                    {timeLeft}s
+                  </span>
+                </div>
+                <Progress value={(timeLeft / answerTimeSeconds) * 100} className="h-2" />
+              </div>
+
+              <div className="p-4 bg-muted/50 rounded-xl">
+                <div className="flex items-center gap-2 mb-1">
+                  <p className="text-xs text-muted-foreground">{currentQuestion.topic}</p>
+                  <span className={`text-xs px-2 py-0.5 rounded-full ${DIFFICULTY_CONFIG[selectedDifficulty].color} text-white`}>
+                    {DIFFICULTY_CONFIG[selectedDifficulty].label}
+                  </span>
+                </div>
+                <h3 className="text-xl font-semibold text-foreground">{currentQuestion.question}</h3>
+              </div>
+
+              <div className="space-y-2">
+                {shuffledAnswers.map((answer, i) => (
+                  <Button
+                    key={i}
+                    variant="outline"
+                    className="w-full text-left justify-start h-auto py-3 whitespace-normal"
+                    onClick={() => handlePlayer2Answer(answer)}
+                  >
+                    {answer}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Round Result */}
+          {step === 'round-result' && currentQuestion && (
+            <div className="space-y-6">
+              <div className="text-center">
+                <p className="text-sm text-muted-foreground mb-2">Round {currentRound} of {quizLength}</p>
+                <h2 className="text-2xl font-bold text-foreground">Round Complete!</h2>
+              </div>
+
+              <div className="p-4 bg-muted/50 rounded-xl">
+                <p className="text-sm text-muted-foreground mb-2">Correct answer:</p>
+                <p className="font-semibold text-success">{currentQuestion.correct_answer}</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 text-center">
+                <div className={`p-4 rounded-xl ${player1Answer === currentQuestion.correct_answer ? 'bg-success/10 border-2 border-success' : 'bg-destructive/10'}`}>
+                  <p className="font-semibold text-foreground">{player1?.name}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {player1Answer === '__timeout__' ? '⏰ Timeout' : player1Answer === currentQuestion.correct_answer ? '✓ Correct' : '✗ Wrong'}
+                  </p>
+                  {player1Time && player1Answer !== '__timeout__' && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {(player1Time / 1000).toFixed(1)}s
+                    </p>
+                  )}
+                </div>
+                <div className={`p-4 rounded-xl ${player2Answer === currentQuestion.correct_answer ? 'bg-success/10 border-2 border-success' : 'bg-destructive/10'}`}>
+                  <p className="font-semibold text-foreground">{player2?.name}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {player2Answer === '__timeout__' ? '⏰ Timeout' : player2Answer === currentQuestion.correct_answer ? '✓ Correct' : '✗ Wrong'}
+                  </p>
+                  {player2Time && player2Answer !== '__timeout__' && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {(player2Time / 1000).toFixed(1)}s
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Current Score */}
+              <div className="p-4 bg-primary/10 rounded-xl">
+                <p className="text-sm text-muted-foreground text-center mb-2">Current Score</p>
+                <div className="flex justify-center items-center gap-4">
+                  <div className="text-center">
+                    <p className="text-sm text-muted-foreground">{player1?.name}</p>
+                    <p className="text-2xl font-bold text-primary">{displayP1Score}</p>
+                  </div>
+                  <span className="text-2xl text-muted-foreground">-</span>
+                  <div className="text-center">
+                    <p className="text-sm text-muted-foreground">{player2?.name}</p>
+                    <p className="text-2xl font-bold text-accent">{displayP2Score}</p>
+                  </div>
+                </div>
+              </div>
+
+              <Button
+                variant="hero"
+                className="w-full"
+                onClick={proceedToNextRound}
+              >
+                {currentRound >= quizLength ? 'See Final Results' : 'Next Question'}
+              </Button>
+            </div>
+          )}
+
+          {/* Final Result */}
+          {step === 'final-result' && currentQuestion && (
             <div className="space-y-6">
               {winner && (
                 <SeatWinnerDisplay
@@ -496,25 +713,19 @@ const QuizMode: React.FC = () => {
                 />
               )}
               
-              <div className="p-4 bg-muted/50 rounded-xl">
-                <p className="text-sm text-muted-foreground mb-2">Correct answer:</p>
-                <p className="font-semibold text-success">{currentQuestion.correct_answer}</p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4 text-center">
-                <div className={`p-4 rounded-xl ${player1Answer === currentQuestion.correct_answer ? 'bg-success/10' : 'bg-destructive/10'}`}>
-                  <p className="font-semibold text-foreground">{player1?.name}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {player1Answer === currentQuestion.correct_answer ? '✓ Correct' : '✗ Wrong'}
-                    {player1Time && ` (${(player1Time / 1000).toFixed(1)}s)`}
-                  </p>
-                </div>
-                <div className={`p-4 rounded-xl ${player2Answer === currentQuestion.correct_answer ? 'bg-success/10' : 'bg-destructive/10'}`}>
-                  <p className="font-semibold text-foreground">{player2?.name}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {player2Answer === currentQuestion.correct_answer ? '✓ Correct' : '✗ Wrong'}
-                    {player2Time && ` (${(player2Time / 1000).toFixed(1)}s)`}
-                  </p>
+              {/* Final Score */}
+              <div className="p-4 bg-primary/10 rounded-xl">
+                <p className="text-sm text-muted-foreground text-center mb-2">Final Score</p>
+                <div className="flex justify-center items-center gap-4">
+                  <div className="text-center">
+                    <p className="text-sm text-muted-foreground">{player1?.name}</p>
+                    <p className="text-3xl font-bold text-primary">{displayP1Score}</p>
+                  </div>
+                  <span className="text-2xl text-muted-foreground">-</span>
+                  <div className="text-center">
+                    <p className="text-sm text-muted-foreground">{player2?.name}</p>
+                    <p className="text-3xl font-bold text-accent">{displayP2Score}</p>
+                  </div>
                 </div>
               </div>
             </div>
