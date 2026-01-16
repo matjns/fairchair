@@ -6,6 +6,7 @@ export interface FamilyMember {
   name: string;
   is_parent: boolean;
   avatar_color: string;
+  avatar_icon: string;
   total_chore_points: number;
 }
 
