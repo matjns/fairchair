@@ -63,9 +63,28 @@ const QuizMode: React.FC = () => {
   const [winner, setWinner] = useState<FamilyMember | null>(null);
   const [questionStartTime, setQuestionStartTime] = useState<number>(0);
   const [usedQuestionIds, setUsedQuestionIds] = useState<string[]>([]);
+  const [userHistoryIds, setUserHistoryIds] = useState<string[]>([]);
 
   const { familyMembers, loading, addFamilyMember } = useFamilyMembers();
   const { recordSeating } = useSeatingHistory();
+
+  // Fetch user's question history on mount
+  useEffect(() => {
+    const fetchUserHistory = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) return;
+      
+      const { data } = await supabase
+        .from('user_question_history')
+        .select('question_id')
+        .eq('user_id', session.user.id);
+      
+      if (data) {
+        setUserHistoryIds(data.map(h => h.question_id));
+      }
+    };
+    fetchUserHistory();
+  }, []);
 
   const kids = familyMembers.filter(m => !m.is_parent);
 
@@ -81,6 +100,9 @@ const QuizMode: React.FC = () => {
   }, [navigate]);
 
   const fetchQuestion = async (topic: string, difficulty: Difficulty) => {
+    // Combine session-used IDs with user's permanent history
+    const excludeIds = [...new Set([...usedQuestionIds, ...userHistoryIds])];
+    
     // Build query excluding already used questions
     let query = supabase
       .from('quiz_questions')
@@ -88,8 +110,8 @@ const QuizMode: React.FC = () => {
       .eq('topic', topic)
       .eq('difficulty', difficulty);
     
-    if (usedQuestionIds.length > 0) {
-      query = query.not('id', 'in', `(${usedQuestionIds.join(',')})`);
+    if (excludeIds.length > 0) {
+      query = query.not('id', 'in', `(${excludeIds.join(',')})`);
     }
     
     const { data, error } = await query;
@@ -101,14 +123,14 @@ const QuizMode: React.FC = () => {
         .select('*')
         .eq('topic', topic);
       
-      if (usedQuestionIds.length > 0) {
-        fallbackQuery = fallbackQuery.not('id', 'in', `(${usedQuestionIds.join(',')})`);
+      if (excludeIds.length > 0) {
+        fallbackQuery = fallbackQuery.not('id', 'in', `(${excludeIds.join(',')})`);
       }
       
       const { data: fallbackData, error: fallbackError } = await fallbackQuery;
       
       if (fallbackError || !fallbackData || fallbackData.length === 0) {
-        console.error('Failed to fetch question:', error);
+        console.error('No more questions available for this topic');
         return null;
       }
       
@@ -120,6 +142,18 @@ const QuizMode: React.FC = () => {
     return randomQuestion as QuizQuestion;
   };
 
+  const recordQuestionForUser = async (questionId: string) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) return;
+    
+    await supabase.from('user_question_history').insert({
+      user_id: session.user.id,
+      question_id: questionId
+    });
+    
+    setUserHistoryIds(prev => [...prev, questionId]);
+  };
+
   const startRound = async () => {
     if (!selectedTopic) return;
     
@@ -128,6 +162,9 @@ const QuizMode: React.FC = () => {
     
     setCurrentQuestion(question);
     setUsedQuestionIds(prev => [...prev, question.id]);
+    
+    // Record this question permanently so it never repeats for this user
+    await recordQuestionForUser(question.id);
     
     // Shuffle answers
     const allAnswers = [question.correct_answer, ...question.wrong_answers];
