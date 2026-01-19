@@ -211,23 +211,33 @@ export type Database = {
       user_question_history: {
         Row: {
           answered_at: string
+          family_member_id: string | null
           id: string
           question_id: string
           user_id: string
         }
         Insert: {
           answered_at?: string
+          family_member_id?: string | null
           id?: string
           question_id: string
           user_id: string
         }
         Update: {
           answered_at?: string
+          family_member_id?: string | null
           id?: string
           question_id?: string
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "user_question_history_family_member_id_fkey"
+            columns: ["family_member_id"]
+            isOneToOne: false
+            referencedRelation: "family_members"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "user_question_history_question_id_fkey"
             columns: ["question_id"]
