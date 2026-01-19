@@ -76,16 +76,18 @@ const QuizMode: React.FC = () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.user) return [];
     
-    // Get questions that EITHER player has seen
+    // Get all question history for this user, then filter by player
     const { data } = await supabase
       .from('user_question_history')
-      .select('question_id, family_member_id')
-      .eq('user_id', session.user.id)
-      .or(`family_member_id.eq.${p1Id},family_member_id.eq.${p2Id}`);
+      .select('*')
+      .eq('user_id', session.user.id);
     
     if (data) {
-      // Return unique question IDs that either player has seen
-      return [...new Set(data.map(h => h.question_id))];
+      // Filter for questions seen by either player and return unique IDs
+      const playerQuestions = data.filter(
+        (h: any) => h.family_member_id === p1Id || h.family_member_id === p2Id
+      );
+      return [...new Set(playerQuestions.map((h: any) => h.question_id))];
     }
     return [];
   };
