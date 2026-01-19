@@ -123,20 +123,33 @@ const RandomMode: React.FC = () => {
     const winnerIndex = kids.findIndex(k => k.id === selectedWinner.id);
     const segmentAngle = 360 / kids.length;
     
-    // Calculate final rotation to land on winner
-    // Pointer is at top (270 degrees), so we need to position winner there
-    const winnerCenter = winnerIndex * segmentAngle + segmentAngle / 2;
-    const targetAngle = 270 - winnerCenter;
+    // The wheel rotates, and the pointer is at the TOP (270 degrees in standard math coordinates)
+    // When rotation is 0, segment 0 starts at 0 degrees (right side)
+    // We need to rotate so that the winner's segment center aligns with the TOP (270 degrees)
+    // 
+    // Winner segment center at rotation 0: winnerIndex * segmentAngle + segmentAngle/2
+    // We need this to align with 270 degrees (top), so we add rotation to move it there
+    // targetRotation = 270 - (winnerIndex * segmentAngle + segmentAngle/2)
+    // But since canvas draws with rotation added, we need to normalize
     
-    // Add extra rotations for dramatic effect
-    const extraRotations = 5 + Math.random() * 3;
-    const finalRotation = rotation + (extraRotations * 360) + targetAngle + (Math.random() * 20 - 10);
+    const winnerCenterAngle = winnerIndex * segmentAngle + segmentAngle / 2;
+    // To align winner center with top (270°), we need total rotation where:
+    // (winnerCenterAngle + totalRotation) mod 360 = 270
+    // So: totalRotation = 270 - winnerCenterAngle
+    const baseTargetRotation = 270 - winnerCenterAngle;
+    
+    // Add extra rotations for dramatic effect (always positive, spinning clockwise)
+    const extraRotations = 5 + Math.floor(Math.random() * 3);
+    const finalRotation = rotation + (extraRotations * 360) + baseTargetRotation - rotation + (Math.random() * 10 - 5);
     
     // Animate the spin
     const duration = 4000;
     const startTime = Date.now();
     const startRotation = rotation;
     const totalRotation = finalRotation - startRotation;
+    
+    // Store winner to set after animation completes
+    const winnerToSet = selectedWinner;
     
     const animate = () => {
       const elapsed = Date.now() - startTime;
@@ -146,14 +159,15 @@ const RandomMode: React.FC = () => {
       const easeOut = 1 - Math.pow(1 - progress, 3);
       
       const currentRotation = startRotation + totalRotation * easeOut;
-      setRotation(currentRotation % 360);
+      setRotation(currentRotation);
       
       if (progress < 1) {
         requestAnimationFrame(animate);
       } else {
-        setWinner(selectedWinner);
+        // Animation complete - set the winner that was pre-selected
+        setWinner(winnerToSet);
         setIsSpinning(false);
-        recordSeating(selectedWinner.id, 'best-seat', 'preferred', 'random');
+        recordSeating(winnerToSet.id, 'best-seat', 'preferred', 'random');
       }
     };
     

@@ -80,17 +80,8 @@ export const Hero: React.FC = () => {
               onClick={() => navigate('/auth')}
               className="group cursor-pointer"
             >
-              Get Started Free
+              Get Started for Free
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-            </Button>
-            <Button 
-              type="button"
-              variant="outline" 
-              size="xl"
-              onClick={() => navigate('/demo')}
-              className="cursor-pointer"
-            >
-              See How It Works
             </Button>
           </div>
         )}
