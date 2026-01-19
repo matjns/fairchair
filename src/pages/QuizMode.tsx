@@ -71,23 +71,24 @@ const QuizMode: React.FC = () => {
   const { familyMembers, loading, addFamilyMember } = useFamilyMembers();
   const { recordSeating } = useSeatingHistory();
 
-  // Fetch user's question history on mount
-  useEffect(() => {
-    const fetchUserHistory = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) return;
-      
-      const { data } = await supabase
-        .from('user_question_history')
-        .select('question_id')
-        .eq('user_id', session.user.id);
-      
-      if (data) {
-        setUserHistoryIds(data.map(h => h.question_id));
-      }
-    };
-    fetchUserHistory();
-  }, []);
+  // Fetch question history for selected players - we'll fetch fresh for each quiz
+  const fetchPlayerHistory = async (p1Id: string, p2Id: string): Promise<string[]> => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) return [];
+    
+    // Get questions that EITHER player has seen
+    const { data } = await supabase
+      .from('user_question_history')
+      .select('question_id, family_member_id')
+      .eq('user_id', session.user.id)
+      .or(`family_member_id.eq.${p1Id},family_member_id.eq.${p2Id}`);
+    
+    if (data) {
+      // Return unique question IDs that either player has seen
+      return [...new Set(data.map(h => h.question_id))];
+    }
+    return [];
+  };
 
   const kids = familyMembers.filter(m => !m.is_parent);
 
@@ -103,25 +104,15 @@ const QuizMode: React.FC = () => {
   }, [navigate]);
 
   const fetchQuestion = async (topic: string, difficulty: Difficulty): Promise<QuizQuestion | null> => {
-    // Get fresh user history to ensure we have the latest - CRITICAL for preventing repeats
-    const { data: { session } } = await supabase.auth.getSession();
-    let freshHistoryIds: string[] = [];
+    if (!player1 || !player2) return null;
     
-    if (session?.user) {
-      const { data: historyData } = await supabase
-        .from('user_question_history')
-        .select('question_id')
-        .eq('user_id', session.user.id);
-      
-      if (historyData) {
-        freshHistoryIds = historyData.map(h => h.question_id);
-      }
-    }
+    // Get fresh player history for BOTH current players
+    const freshHistoryIds = await fetchPlayerHistory(player1.id, player2.id);
     
     // Use the ref for immediate/accurate session tracking (state is async)
     const sessionUsedIds = Array.from(usedQuestionIdsRef.current);
     
-    // Combine ALL used IDs - session + permanent history
+    // Combine ALL used IDs - session + permanent player history
     const excludeIds = [...new Set([...sessionUsedIds, ...freshHistoryIds])];
     
     console.log('Excluding question IDs:', excludeIds.length);
@@ -184,14 +175,15 @@ const QuizMode: React.FC = () => {
     return null;
   };
 
-  const recordQuestionForUser = async (questionId: string) => {
+  const recordQuestionForPlayers = async (questionId: string, p1Id: string, p2Id: string) => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.user) return;
     
-    await supabase.from('user_question_history').insert({
-      user_id: session.user.id,
-      question_id: questionId
-    });
+    // Record question for BOTH players who saw it
+    await supabase.from('user_question_history').insert([
+      { user_id: session.user.id, question_id: questionId, family_member_id: p1Id },
+      { user_id: session.user.id, question_id: questionId, family_member_id: p2Id }
+    ]);
     
     setUserHistoryIds(prev => [...prev, questionId]);
   };
@@ -210,8 +202,10 @@ const QuizMode: React.FC = () => {
     
     setCurrentQuestion(question);
     
-    // Record this question permanently so it never repeats for this user
-    await recordQuestionForUser(question.id);
+    // Record this question for BOTH players so it never repeats for them
+    if (player1 && player2) {
+      await recordQuestionForPlayers(question.id, player1.id, player2.id);
+    }
     
     // Shuffle answers
     const allAnswers = [question.correct_answer, ...question.wrong_answers];
