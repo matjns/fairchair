@@ -67,7 +67,7 @@ export const Hero: React.FC = () => {
           Use quizzes, track chores, and let everyone get their turn at the window seat!
         </p>
 
-        {/* CTA Buttons - Only show when not logged in */}
+        {/* CTA Buttons - Only show when confirmed not logged in (not null/loading) */}
         {isLoggedIn === false && (
           <div 
             className="relative z-50 flex flex-col sm:flex-row items-center justify-center gap-4 mb-16 animate-fade-in-up"
