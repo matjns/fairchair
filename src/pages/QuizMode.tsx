@@ -72,22 +72,23 @@ const QuizMode: React.FC = () => {
   const { recordSeating } = useSeatingHistory();
 
   // Fetch question history for selected players - we'll fetch fresh for each quiz
+  // Include questions with NULL family_member_id (legacy) AND questions for either player
   const fetchPlayerHistory = async (p1Id: string, p2Id: string): Promise<string[]> => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.user) return [];
     
-    // Get all question history for this user, then filter by player
+    // Get ALL question history for this user - including legacy ones with null family_member_id
     const { data } = await supabase
       .from('user_question_history')
-      .select('*')
+      .select('question_id, family_member_id')
       .eq('user_id', session.user.id);
     
     if (data) {
-      // Filter for questions seen by either player and return unique IDs
-      const playerQuestions = data.filter(
-        (h: any) => h.family_member_id === p1Id || h.family_member_id === p2Id
+      // Include: 1) legacy questions (null family_member_id), 2) questions either player has seen
+      const relevantQuestions = data.filter(
+        (h: any) => h.family_member_id === null || h.family_member_id === p1Id || h.family_member_id === p2Id
       );
-      return [...new Set(playerQuestions.map((h: any) => h.question_id))];
+      return [...new Set(relevantQuestions.map((h: any) => h.question_id))];
     }
     return [];
   };
@@ -314,27 +315,24 @@ const QuizMode: React.FC = () => {
     const p1Correct = player1Answer === correct;
     const p2Correct = player2Answer === correct;
     
-    // Update scores
-    if (p1Correct) {
-      setPlayer1Score(prev => prev + 1);
-    }
-    if (p2Correct) {
-      setPlayer2Score(prev => prev + 1);
-    }
+    // Update scores - store the new values directly to avoid display issues
+    const newP1Score = player1Score + (p1Correct ? 1 : 0);
+    const newP2Score = player2Score + (p2Correct ? 1 : 0);
+    
+    setPlayer1Score(newP1Score);
+    setPlayer2Score(newP2Score);
     
     setStep('round-result');
-  }, [currentQuestion, player1, player2, player1Answer, player2Answer]);
+  }, [currentQuestion, player1, player2, player1Answer, player2Answer, player1Score, player2Score]);
 
   const proceedToNextRound = async () => {
     if (currentRound >= quizLength) {
-      // Determine final winner
+      // Determine final winner - scores are already updated by determineRoundWinner
       let finalWinner: FamilyMember | null = null;
-      const p1FinalScore = player1Score + (player1Answer === currentQuestion?.correct_answer ? 1 : 0);
-      const p2FinalScore = player2Score + (player2Answer === currentQuestion?.correct_answer ? 1 : 0);
       
-      if (p1FinalScore > p2FinalScore) {
+      if (player1Score > player2Score) {
         finalWinner = player1;
-      } else if (p2FinalScore > p1FinalScore) {
+      } else if (player2Score > player1Score) {
         finalWinner = player2;
       } else {
         // Tie - use total time as tiebreaker (lower is better)
@@ -381,9 +379,9 @@ const QuizMode: React.FC = () => {
 
   const answerTimeSeconds = DIFFICULTY_CONFIG[selectedDifficulty].time;
 
-  // Calculate current scores for display
-  const displayP1Score = player1Score + (step === 'round-result' && player1Answer === currentQuestion?.correct_answer ? 1 : 0);
-  const displayP2Score = player2Score + (step === 'round-result' && player2Answer === currentQuestion?.correct_answer ? 1 : 0);
+  // Scores are now directly updated, no need for display calculation
+  const displayP1Score = player1Score;
+  const displayP2Score = player2Score;
 
   return (
     <div className="min-h-screen bg-background px-4 py-12">
