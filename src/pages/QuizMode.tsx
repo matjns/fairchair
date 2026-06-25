@@ -71,26 +71,23 @@ const QuizMode: React.FC = () => {
   const { familyMembers, loading, addFamilyMember } = useFamilyMembers();
   const { recordSeating } = useSeatingHistory();
 
-  // Fetch question history for selected players - we'll fetch fresh for each quiz
-  // Include questions with NULL family_member_id (legacy) AND questions for either player
-  const fetchPlayerHistory = async (p1Id: string, p2Id: string): Promise<string[]> => {
+  // Fetch all question history for the signed-in account so Quiz Mode never repeats
+  // a question for any family profile on that account.
+  const fetchPlayerHistory = async (): Promise<string[]> => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.user) return [];
     
-    // Get ALL question history for this user - including legacy ones with null family_member_id
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('user_question_history')
-      .select('question_id, family_member_id')
+      .select('question_id')
       .eq('user_id', session.user.id);
     
-    if (data) {
-      // Include: 1) legacy questions (null family_member_id), 2) questions either player has seen
-      const relevantQuestions = data.filter(
-        (h: any) => h.family_member_id === null || h.family_member_id === p1Id || h.family_member_id === p2Id
-      );
-      return [...new Set(relevantQuestions.map((h: any) => h.question_id))];
+    if (error) {
+      console.error('Could not load question history:', error);
+      return [];
     }
-    return [];
+
+    return [...new Set((data ?? []).map((h: any) => h.question_id))];
   };
 
   const kids = familyMembers.filter(m => !m.is_parent);
@@ -109,8 +106,8 @@ const QuizMode: React.FC = () => {
   const fetchQuestion = async (topic: string, difficulty: Difficulty): Promise<QuizQuestion | null> => {
     if (!player1 || !player2) return null;
     
-    // Get fresh player history for BOTH current players
-    const freshHistoryIds = await fetchPlayerHistory(player1.id, player2.id);
+    // Get fresh account-wide history so a question never repeats for any profile
+    const freshHistoryIds = await fetchPlayerHistory();
     
     // Use the ref for immediate/accurate session tracking (state is async)
     const sessionUsedIds = Array.from(usedQuestionIdsRef.current);
@@ -178,17 +175,25 @@ const QuizMode: React.FC = () => {
     return null;
   };
 
-  const recordQuestionForPlayers = async (questionId: string, p1Id: string, p2Id: string) => {
+  const recordQuestionForPlayers = async (questionId: string) => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.user) return;
     
-    // Record question for BOTH players who saw it
-    await supabase.from('user_question_history').insert([
-      { user_id: session.user.id, question_id: questionId, family_member_id: p1Id },
-      { user_id: session.user.id, question_id: questionId, family_member_id: p2Id }
-    ]);
+    // The table is unique per account/question. Save one account-wide record as soon
+    // as the question appears, so changing players still cannot bring it back.
+    const { error } = await supabase
+      .from('user_question_history')
+      .upsert(
+        { user_id: session.user.id, question_id: questionId, family_member_id: null },
+        { onConflict: 'user_id,question_id', ignoreDuplicates: true }
+      );
     
-    setUserHistoryIds(prev => [...prev, questionId]);
+    if (error) {
+      console.error('Could not save question history:', error);
+      return;
+    }
+    
+    setUserHistoryIds(prev => [...new Set([...prev, questionId])]);
   };
 
   const startRound = async () => {
@@ -205,10 +210,8 @@ const QuizMode: React.FC = () => {
     
     setCurrentQuestion(question);
     
-    // Record this question for BOTH players so it never repeats for them
-    if (player1 && player2) {
-      await recordQuestionForPlayers(question.id, player1.id, player2.id);
-    }
+    // Record this question immediately so it never repeats later.
+    await recordQuestionForPlayers(question.id);
     
     // Shuffle answers
     const allAnswers = [question.correct_answer, ...question.wrong_answers];
