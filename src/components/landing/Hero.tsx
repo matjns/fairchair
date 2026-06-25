@@ -136,12 +136,12 @@ export const Hero: React.FC = () => {
       </div>
       <div className="absolute top-1/3 right-16 hidden lg:block animate-bounce-gentle pointer-events-none" style={{ animationDelay: '1s' }}>
         <div className="card-elevated p-4 rotate-[8deg]">
-          <ChairIcon className="w-10 h-10 text-accent" />
+          <ChairIcon className="w-10 h-10 text-primary" />
         </div>
       </div>
       <div className="absolute bottom-1/3 right-24 hidden lg:block animate-bounce-gentle pointer-events-none" style={{ animationDelay: '1.5s' }}>
         <div className="card-elevated p-4 rotate-[-5deg]">
-          <Users className="w-10 h-10 text-success" />
+          <Users className="w-10 h-10 text-primary" />
         </div>
       </div>
     </section>
