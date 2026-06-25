@@ -17,7 +17,7 @@ const modes = [
     title: 'Quiz Mode',
     description: 'Answer trivia questions to compete for seats! Choose from different topics and difficulty levels.',
     features: ['Multiple topics', 'Timed challenges', 'Learn while you play'],
-    gradient: 'from-accent to-accent/70',
+    gradient: 'from-primary to-primary/70',
   },
   {
     id: 'random',
@@ -25,7 +25,7 @@ const modes = [
     title: 'Random/Fair Mode',
     description: 'Let the app randomly assign seats based on preferences while ensuring everyone gets fair turns over time.',
     features: ['Respects preferences', 'Tracks seat history', 'Automatic fairness'],
-    gradient: 'from-warning to-warning/70',
+    gradient: 'from-primary to-primary/70',
   },
 ];
 
