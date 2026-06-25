@@ -22,6 +22,12 @@ interface QuizQuestion {
   difficulty: string;
 }
 
+interface QuestionHistory {
+  ids: string[];
+  texts: string[];
+  userId: string | null;
+}
+
 type QuizStep = 'setup' | 'select-players' | 'select-difficulty' | 'select-length' | 'select-topic' | 'countdown' | 'question-p1' | 'pass-device' | 'question-p2' | 'round-result' | 'final-result';
 type Difficulty = 'easy' | 'medium' | 'hard';
 
@@ -39,6 +45,42 @@ const QUIZ_LENGTH_OPTIONS = [
   { rounds: 5, label: '5 Questions', description: 'Best of 5' },
   { rounds: 10, label: '10 Questions', description: 'Marathon' },
 ];
+
+const normalizeQuestionText = (question: string) =>
+  question
+    .toLowerCase()
+    .replace(/[“”]/g, '"')
+    .replace(/[‘’]/g, "'")
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+
+const questionTextStorageKeys = (userId: string | null) => [
+  'fairchair.quiz.seenQuestionTexts',
+  userId ? `fairchair.quiz.seenQuestionTexts.${userId}` : null,
+].filter(Boolean) as string[];
+
+const readStoredQuestionTexts = (userId: string | null) => {
+  if (typeof window === 'undefined') return [];
+
+  return questionTextStorageKeys(userId).flatMap((key) => {
+    try {
+      const value = window.localStorage.getItem(key);
+      return value ? JSON.parse(value) as string[] : [];
+    } catch {
+      return [];
+    }
+  });
+};
+
+const saveStoredQuestionText = (userId: string | null, normalizedQuestion: string) => {
+  if (typeof window === 'undefined' || !normalizedQuestion) return;
+
+  questionTextStorageKeys(userId).forEach((key) => {
+    const existing = readStoredQuestionTexts(userId).filter(Boolean);
+    const next = [...new Set([...existing, normalizedQuestion])].slice(-1000);
+    window.localStorage.setItem(key, JSON.stringify(next));
+  });
+};
 
 const QuizMode: React.FC = () => {
   const navigate = useNavigate();
@@ -67,27 +109,46 @@ const QuizMode: React.FC = () => {
   
   // Use ref for immediate tracking (state updates are async and cause race conditions)
   const usedQuestionIdsRef = useRef<Set<string>>(new Set());
+  const usedQuestionTextsRef = useRef<Set<string>>(new Set());
 
   const { familyMembers, loading, addFamilyMember } = useFamilyMembers();
   const { recordSeating } = useSeatingHistory();
 
   // Fetch all question history for the signed-in account so Quiz Mode never repeats
   // a question for any family profile on that account.
-  const fetchPlayerHistory = async (): Promise<string[]> => {
+  const fetchPlayerHistory = async (): Promise<QuestionHistory> => {
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.user) return [];
+    if (!session?.user) return { ids: [], texts: [], userId: null };
     
     const { data, error } = await supabase
       .from('user_question_history')
-      .select('question_id')
+      .select('question_id, quiz_questions(question)')
       .eq('user_id', session.user.id);
     
     if (error) {
       console.error('Could not load question history:', error);
-      return [];
+      return { ids: [], texts: readStoredQuestionTexts(session.user.id), userId: session.user.id };
     }
 
-    return [...new Set((data ?? []).map((h: any) => h.question_id))];
+    const historyRows = (data ?? []) as Array<{
+      question_id: string;
+      quiz_questions: { question: string } | { question: string }[] | null;
+    }>;
+
+    const dbTexts = historyRows.flatMap((history) => {
+      const question = Array.isArray(history.quiz_questions)
+        ? history.quiz_questions[0]
+        : history.quiz_questions;
+      return question?.question ? [normalizeQuestionText(question.question)] : [];
+    });
+
+    const storedTexts = readStoredQuestionTexts(session.user.id);
+
+    return {
+      ids: [...new Set(historyRows.map((h) => h.question_id))],
+      texts: [...new Set([...dbTexts, ...storedTexts])],
+      userId: session.user.id,
+    };
   };
 
   const kids = familyMembers.filter(m => !m.is_parent);
@@ -103,97 +164,120 @@ const QuizMode: React.FC = () => {
     checkAuth();
   }, [navigate]);
 
+  const reserveQuestion = async (question: QuizQuestion, userId: string | null) => {
+    const normalizedQuestion = normalizeQuestionText(question.question);
+
+    if (usedQuestionIdsRef.current.has(question.id) || usedQuestionTextsRef.current.has(normalizedQuestion)) {
+      return false;
+    }
+
+    if (userId) {
+      const { error } = await supabase
+        .from('user_question_history')
+        .insert({ user_id: userId, question_id: question.id, family_member_id: null });
+      
+      if (error) {
+        if (error.code === '23505') {
+          usedQuestionIdsRef.current.add(question.id);
+          usedQuestionTextsRef.current.add(normalizedQuestion);
+          saveStoredQuestionText(userId, normalizedQuestion);
+          return false;
+        }
+
+        console.error('Could not save question history:', error);
+      }
+    }
+
+    usedQuestionIdsRef.current.add(question.id);
+    usedQuestionTextsRef.current.add(normalizedQuestion);
+    saveStoredQuestionText(userId, normalizedQuestion);
+    setUsedQuestionIds(prev => [...new Set([...prev, question.id])]);
+    setUserHistoryIds(prev => [...new Set([...prev, question.id])]);
+    return true;
+  };
+
+  const pickFreshQuestion = async (
+    questions: QuizQuestion[] | null,
+    excludedIds: Set<string>,
+    excludedTexts: Set<string>,
+    userId: string | null,
+  ) => {
+    const freshQuestions = (questions ?? []).filter((question) => {
+      const normalizedQuestion = normalizeQuestionText(question.question);
+      return !excludedIds.has(question.id) && !excludedTexts.has(normalizedQuestion);
+    });
+
+    const shuffledQuestions = [...freshQuestions].sort(() => Math.random() - 0.5);
+
+    for (const question of shuffledQuestions) {
+      if (await reserveQuestion(question, userId)) {
+        return question;
+      }
+    }
+
+    return null;
+  };
+
   const fetchQuestion = async (topic: string, difficulty: Difficulty): Promise<QuizQuestion | null> => {
     if (!player1 || !player2) return null;
     
     // Get fresh account-wide history so a question never repeats for any profile
-    const freshHistoryIds = await fetchPlayerHistory();
+    const freshHistory = await fetchPlayerHistory();
     
     // Use the ref for immediate/accurate session tracking (state is async)
     const sessionUsedIds = Array.from(usedQuestionIdsRef.current);
+    const sessionUsedTexts = Array.from(usedQuestionTextsRef.current);
     
-    // Combine ALL used IDs - session + permanent player history
-    const excludeIds = [...new Set([...sessionUsedIds, ...freshHistoryIds])];
+    // Combine ALL used IDs/texts - session + permanent history + browser backup.
+    const excludeIds = new Set([...sessionUsedIds, ...freshHistory.ids]);
+    const excludeTexts = new Set([...sessionUsedTexts, ...freshHistory.texts]);
     
-    console.log('Excluding question IDs:', excludeIds.length);
+    console.log('Excluding question IDs/texts:', excludeIds.size, excludeTexts.size);
     
     // FIRST: Try to get questions matching topic AND difficulty
-    let query = supabase
+    const { data, error } = await supabase
       .from('quiz_questions')
       .select('*')
       .eq('topic', topic)
       .eq('difficulty', difficulty);
     
-    if (excludeIds.length > 0) {
-      query = query.not('id', 'in', `(${excludeIds.join(',')})`);
-    }
-    
-    const { data, error } = await query;
-    
-    if (!error && data && data.length > 0) {
-      const randomQuestion = data[Math.floor(Math.random() * data.length)];
-      console.log('Found question (exact match):', randomQuestion.id);
-      return randomQuestion as QuizQuestion;
+    if (!error) {
+      const exactQuestion = await pickFreshQuestion(data as QuizQuestion[] | null, excludeIds, excludeTexts, freshHistory.userId);
+      if (exactQuestion) {
+        console.log('Found question (exact match):', exactQuestion.id);
+        return exactQuestion;
+      }
     }
     
     // FALLBACK 1: Try any difficulty for this topic
-    let fallbackQuery = supabase
+    const { data: fallbackData, error: fallbackError } = await supabase
       .from('quiz_questions')
       .select('*')
       .eq('topic', topic);
     
-    if (excludeIds.length > 0) {
-      fallbackQuery = fallbackQuery.not('id', 'in', `(${excludeIds.join(',')})`);
-    }
-    
-    const { data: fallbackData, error: fallbackError } = await fallbackQuery;
-    
-    if (!fallbackError && fallbackData && fallbackData.length > 0) {
-      const randomQuestion = fallbackData[Math.floor(Math.random() * fallbackData.length)];
-      console.log('Found question (any difficulty):', randomQuestion.id);
-      return randomQuestion as QuizQuestion;
+    if (!fallbackError) {
+      const topicQuestion = await pickFreshQuestion(fallbackData as QuizQuestion[] | null, excludeIds, excludeTexts, freshHistory.userId);
+      if (topicQuestion) {
+        console.log('Found question (any difficulty):', topicQuestion.id);
+        return topicQuestion;
+      }
     }
     
     // FALLBACK 2: Try ANY topic (user exhausted this topic)
-    let anyTopicQuery = supabase
+    const { data: anyData, error: anyError } = await supabase
       .from('quiz_questions')
       .select('*');
     
-    if (excludeIds.length > 0) {
-      anyTopicQuery = anyTopicQuery.not('id', 'in', `(${excludeIds.join(',')})`);
-    }
-    
-    const { data: anyData, error: anyError } = await anyTopicQuery;
-    
-    if (!anyError && anyData && anyData.length > 0) {
-      const randomQuestion = anyData[Math.floor(Math.random() * anyData.length)];
-      console.log('Found question (any topic):', randomQuestion.id);
-      return randomQuestion as QuizQuestion;
+    if (!anyError) {
+      const anyQuestion = await pickFreshQuestion(anyData as QuizQuestion[] | null, excludeIds, excludeTexts, freshHistory.userId);
+      if (anyQuestion) {
+        console.log('Found question (any topic):', anyQuestion.id);
+        return anyQuestion;
+      }
     }
     
     console.error('No more questions available at all!');
     return null;
-  };
-
-  const recordQuestionForPlayers = async (questionId: string) => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.user) return;
-    
-    // The table is unique per account/question. Save one account-wide record as soon
-    // as the question appears, so changing players still cannot bring it back.
-    const { error } = await supabase
-      .from('user_question_history')
-      .upsert(
-        { user_id: session.user.id, question_id: questionId, family_member_id: null },
-        { onConflict: 'user_id,question_id', ignoreDuplicates: true }
-      );
-    
-    if (error) {
-      console.error('Could not save question history:', error);
-      return;
-    }
-    
-    setUserHistoryIds(prev => [...new Set([...prev, questionId])]);
   };
 
   const startRound = async () => {
@@ -202,16 +286,7 @@ const QuizMode: React.FC = () => {
     const question = await fetchQuestion(selectedTopic, selectedDifficulty);
     if (!question) return;
     
-    // IMMEDIATELY add to ref to prevent race conditions (ref is synchronous)
-    usedQuestionIdsRef.current.add(question.id);
-    
-    // Also update state for UI consistency
-    setUsedQuestionIds(prev => [...prev, question.id]);
-    
     setCurrentQuestion(question);
-    
-    // Record this question immediately so it never repeats later.
-    await recordQuestionForPlayers(question.id);
     
     // Shuffle answers
     const allAnswers = [question.correct_answer, ...question.wrong_answers];
@@ -367,6 +442,7 @@ const QuizMode: React.FC = () => {
     setWinner(null);
     setUsedQuestionIds([]);
     usedQuestionIdsRef.current.clear(); // Also clear the ref
+    usedQuestionTextsRef.current.clear();
   };
 
   if (isAuthenticated === null || loading) {
