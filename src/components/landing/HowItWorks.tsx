@@ -12,19 +12,19 @@ const steps = [
     icon: Users,
     title: 'Add Family Members',
     description: 'Invite everyone who rides together - kids, parents, grandparents!',
-    color: 'bg-accent/10 text-accent',
+    color: 'bg-primary/10 text-primary',
   },
   {
     icon: Settings2,
     title: 'Set Preferences',
     description: 'Each person sets their seating preferences - window, middle, front, back.',
-    color: 'bg-success/10 text-success',
+    color: 'bg-primary/10 text-primary',
   },
   {
     icon: Gamepad2,
     title: 'Choose Your Mode',
     description: 'Pick Chore Mode or Quiz Mode to fairly decide who gets which seat!',
-    color: 'bg-warning/10 text-warning',
+    color: 'bg-primary/10 text-primary',
   },
 ];
 
