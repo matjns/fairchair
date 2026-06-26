@@ -8,6 +8,7 @@ export interface FamilyMember {
   avatar_color: string;
   avatar_icon: string;
   total_chore_points: number;
+  favorite_seat?: string | null;
 }
 
 export const useFamilyMembers = () => {
