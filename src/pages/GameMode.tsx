@@ -370,8 +370,7 @@ const ChessGame: React.FC<{ p1: FamilyMember; p2: FamilyMember; onWinner: (m: Fa
     return false;
   };
 
-  const onPieceDrop = ({ sourceSquare, targetSquare }: { sourceSquare: string; targetSquare: string | null }) => {
-    if (!targetSquare) return false;
+  const onPieceDrop = (sourceSquare: string, targetSquare: string) => {
     try {
       const move = gameRef.current.move({ from: sourceSquare, to: targetSquare, promotion: 'q' });
       if (!move) return false;
@@ -416,12 +415,10 @@ const ChessGame: React.FC<{ p1: FamilyMember; p2: FamilyMember; onWinner: (m: Fa
       </p>
       <div className="max-w-md mx-auto">
         <Chessboard
-          options={{
-            position: fen,
-            onPieceDrop,
-            boardOrientation: gameRef.current.turn() === 'w' ? 'white' : 'black',
-            id: 'fairchair-chess',
-          }}
+          position={fen}
+          onPieceDrop={onPieceDrop}
+          boardOrientation={gameRef.current.turn() === 'w' ? 'white' : 'black'}
+          id="fairchair-chess"
         />
       </div>
       {status && <p className="text-center font-semibold">{status}</p>}
