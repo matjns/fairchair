@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
-  ArrowLeft, Gamepad2, Trophy, Calculator, Type, Brain, Crown, RotateCcw, Flag,
+  ArrowLeft, Gamepad2, Trophy, Calculator, Type, Brain, Crown, RotateCcw, Flag, Zap,
 } from 'lucide-react';
 import { Chess } from 'chess.js';
 import { Chessboard } from 'react-chessboard';
@@ -12,7 +12,7 @@ import { useFamilyMembers, FamilyMember } from '@/hooks/useFamilyMembers';
 import { FamilyMemberCard } from '@/components/modes/FamilyMemberCard';
 import { SeatWinnerDisplay } from '@/components/modes/SeatWinnerDisplay';
 
-type GameId = 'math' | 'word' | 'memory' | 'chess';
+type GameId = 'math' | 'word' | 'memory' | 'chess' | 'reaction';
 type Step = 'setup' | 'pick-game' | 'pick-players' | 'play' | 'final';
 
 const GAMES: { id: GameId; title: string; desc: string; icon: React.ComponentType<any> }[] = [
@@ -20,6 +20,7 @@ const GAMES: { id: GameId; title: string; desc: string; icon: React.ComponentTyp
   { id: 'word', title: 'Word Scramble', desc: 'Unscramble the word before the other player.', icon: Type },
   { id: 'memory', title: 'Memory Sequence', desc: 'Repeat the growing pattern. Longest streak wins.', icon: Brain },
   { id: 'chess', title: 'Chess', desc: 'Two players, one board. Checkmate to win the seat.', icon: Crown },
+  { id: 'reaction', title: 'Reaction Time', desc: 'Tap the moment the screen turns green. Fastest reflex wins.', icon: Zap },
 ];
 
 const WORDS = ['planet', 'puzzle', 'rocket', 'butter', 'window', 'forest', 'castle', 'guitar', 'silver', 'orange', 'mighty', 'wonder'];
@@ -145,6 +146,7 @@ const GamePlay: React.FC<{ game: GameId; p1: FamilyMember; p2: FamilyMember; onW
   if (game === 'math') return <MathDuel p1={p1} p2={p2} onWinner={onWinner} />;
   if (game === 'word') return <WordScramble p1={p1} p2={p2} onWinner={onWinner} />;
   if (game === 'memory') return <MemorySequence p1={p1} p2={p2} onWinner={onWinner} />;
+  if (game === 'reaction') return <ReactionTime p1={p1} p2={p2} onWinner={onWinner} />;
   return <ChessGame p1={p1} p2={p2} onWinner={onWinner} />;
 };
 
@@ -368,8 +370,7 @@ const ChessGame: React.FC<{ p1: FamilyMember; p2: FamilyMember; onWinner: (m: Fa
     return false;
   };
 
-  const onPieceDrop = ({ sourceSquare, targetSquare }: { sourceSquare: string; targetSquare: string | null }) => {
-    if (!targetSquare) return false;
+  const onPieceDrop = (sourceSquare: string, targetSquare: string) => {
     try {
       const move = gameRef.current.move({ from: sourceSquare, to: targetSquare, promotion: 'q' });
       if (!move) return false;
@@ -414,12 +415,10 @@ const ChessGame: React.FC<{ p1: FamilyMember; p2: FamilyMember; onWinner: (m: Fa
       </p>
       <div className="max-w-md mx-auto">
         <Chessboard
-          options={{
-            position: fen,
-            onPieceDrop,
-            boardOrientation: gameRef.current.turn() === 'w' ? 'white' : 'black',
-            id: 'fairchair-chess',
-          }}
+          position={fen}
+          onPieceDrop={onPieceDrop}
+          boardOrientation={gameRef.current.turn() === 'w' ? 'white' : 'black'}
+          id="fairchair-chess"
         />
       </div>
       {status && <p className="text-center font-semibold">{status}</p>}
@@ -437,3 +436,114 @@ const ChessGame: React.FC<{ p1: FamilyMember; p2: FamilyMember; onWinner: (m: Fa
 };
 
 export default GameMode;
+
+/* Reaction Time — best of 3, fastest reflex wins */
+const ReactionTime: React.FC<{ p1: FamilyMember; p2: FamilyMember; onWinner: (m: FamilyMember) => void }> = ({ p1, p2, onWinner }) => {
+  const ROUNDS = 3;
+  const [turn, setTurn] = useState<0 | 1>(0);
+  const [round, setRound] = useState(1);
+  const [phase, setPhase] = useState<'idle' | 'waiting' | 'go' | 'result' | 'foul'>('idle');
+  const [startAt, setStartAt] = useState(0);
+  const [reaction, setReaction] = useState<number | null>(null);
+  const [times, setTimes] = useState<{ p1: number[]; p2: number[] }>({ p1: [], p2: [] });
+  const timerRef = React.useRef<number | null>(null);
+  const current = turn === 0 ? p1 : p2;
+
+  const clearTimer = () => {
+    if (timerRef.current !== null) { window.clearTimeout(timerRef.current); timerRef.current = null; }
+  };
+
+  useEffect(() => () => clearTimer(), []);
+
+  const begin = () => {
+    setReaction(null);
+    setPhase('waiting');
+    const delay = 1500 + Math.random() * 2500;
+    timerRef.current = window.setTimeout(() => {
+      setStartAt(Date.now());
+      setPhase('go');
+    }, delay);
+  };
+
+  const tap = () => {
+    if (phase === 'waiting') {
+      clearTimer();
+      setPhase('foul');
+      return;
+    }
+    if (phase === 'go') {
+      const t = Date.now() - startAt;
+      setReaction(t);
+      setPhase('result');
+    }
+  };
+
+  const record = (ms: number) => {
+    const key = turn === 0 ? 'p1' : 'p2';
+    const updated = { ...times, [key]: [...times[key], ms] };
+    setTimes(updated);
+
+    const lastOfRound = turn === 1;
+    if (lastOfRound && round >= ROUNDS) {
+      const avg = (arr: number[]) => arr.reduce((a, b) => a + b, 0) / arr.length;
+      onWinner(avg(updated.p1) <= avg(updated.p2) ? p1 : p2);
+      return;
+    }
+    if (turn === 0) setTurn(1);
+    else { setTurn(0); setRound(r => r + 1); }
+    setPhase('idle');
+    setReaction(null);
+  };
+
+  const nextStep = () => {
+    if (phase === 'foul') {
+      record(2000); // 2s penalty
+    } else if (phase === 'result' && reaction !== null) {
+      record(reaction);
+    }
+  };
+
+  const bg =
+    phase === 'go' ? 'bg-success' :
+    phase === 'waiting' ? 'bg-destructive' :
+    phase === 'foul' ? 'bg-warning' :
+    'bg-muted/40';
+
+  const label =
+    phase === 'idle' ? 'Tap Start, then tap when the box turns GREEN' :
+    phase === 'waiting' ? 'Wait for green…' :
+    phase === 'go' ? 'TAP NOW!' :
+    phase === 'foul' ? 'Too early! +2.00s penalty' :
+    `${fmt(reaction ?? 0)} reaction`;
+
+  return (
+    <div className="card-interactive p-8 space-y-5">
+      <TurnHeader player={current} label={`Reaction Time — Round ${round} of ${ROUNDS} (pass the device)`} />
+      <button
+        onClick={tap}
+        disabled={phase !== 'waiting' && phase !== 'go'}
+        className={`w-full h-56 rounded-2xl ${bg} text-white text-3xl font-extrabold flex items-center justify-center transition-colors disabled:cursor-default`}
+      >
+        {label}
+      </button>
+      {phase === 'idle' && (
+        <Button variant="hero" size="lg" className="w-full" onClick={begin}>Start {current.name}'s Turn</Button>
+      )}
+      {(phase === 'result' || phase === 'foul') && (
+        <Button variant="hero" size="lg" className="w-full" onClick={nextStep}>
+          {turn === 1 && round >= ROUNDS ? 'See Winner' : 'Next Turn'}
+        </Button>
+      )}
+      <div className="grid grid-cols-2 gap-3 text-center text-sm">
+        <div className="rounded-lg bg-muted/40 p-3">
+          <p className="text-muted-foreground">{p1.name}</p>
+          <p className="font-bold">{times.p1.map(fmt).join(' • ') || '—'}</p>
+        </div>
+        <div className="rounded-lg bg-muted/40 p-3">
+          <p className="text-muted-foreground">{p2.name}</p>
+          <p className="font-bold">{times.p2.map(fmt).join(' • ') || '—'}</p>
+        </div>
+      </div>
+    </div>
+  );
+};
