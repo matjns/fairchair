@@ -20,13 +20,8 @@ const BADGES: BadgeDef[] = [
   { id: 'quiz',      name: 'Brainiac',        description: 'Win at least 3 Quiz Mode battles.',         icon: Brain,      check: w => w.filter(r => r.mode === 'quiz').length >= 3 },
   { id: 'random',    name: 'Lady Luck',       description: 'Win at least 3 Random Mode battles.',       icon: Shuffle,    check: w => w.filter(r => r.mode === 'random').length >= 3 },
   { id: 'points50',  name: 'Hard Worker',     description: 'Earn 50+ total chore points.',              icon: Star,       check: (_w, m) => m.total_chore_points >= 50 },
-  { id: 'streak',    name: 'On Fire',         description: 'Win 3 seat battles in a row.',              icon: Flame,      check: w => longestStreak(w) >= 3 },
+  { id: 'streak',    name: 'On Fire',         description: 'Win 3 seat battles in a row.',              icon: Flame,      check: () => false },
 ];
-
-const longestStreak = (rows: SeatingRecord[]) => {
-  // rows already sorted desc; check consecutive same-member wins in full history (passed pre-filtered, so just length-based)
-  return rows.length; // we pass already-grouped streak rows
-};
 
 const Achievements: React.FC = () => {
   const { familyMembers, loading: ml } = useFamilyMembers();
@@ -35,14 +30,12 @@ const Achievements: React.FC = () => {
   const computed = useMemo(() => {
     return familyMembers.map(m => {
       const wins = history.filter(h => h.family_member_id === m.id);
-      // compute longest streak in chronological order
       const chrono = [...history].reverse();
       let max = 0, cur = 0;
       chrono.forEach(r => {
         if (r.family_member_id === m.id) { cur++; max = Math.max(max, cur); }
         else cur = 0;
       });
-      const streakRows = new Array(max).fill(null).map(() => wins[0] ?? null).filter(Boolean) as SeatingRecord[];
       const earned = BADGES.filter(b => b.id === 'streak' ? max >= 3 : b.check(wins, m));
       return { member: m, wins, earned, streak: max };
     });
