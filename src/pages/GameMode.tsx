@@ -436,3 +436,114 @@ const ChessGame: React.FC<{ p1: FamilyMember; p2: FamilyMember; onWinner: (m: Fa
 };
 
 export default GameMode;
+
+/* Reaction Time — best of 3, fastest reflex wins */
+const ReactionTime: React.FC<{ p1: FamilyMember; p2: FamilyMember; onWinner: (m: FamilyMember) => void }> = ({ p1, p2, onWinner }) => {
+  const ROUNDS = 3;
+  const [turn, setTurn] = useState<0 | 1>(0);
+  const [round, setRound] = useState(1);
+  const [phase, setPhase] = useState<'idle' | 'waiting' | 'go' | 'result' | 'foul'>('idle');
+  const [startAt, setStartAt] = useState(0);
+  const [reaction, setReaction] = useState<number | null>(null);
+  const [times, setTimes] = useState<{ p1: number[]; p2: number[] }>({ p1: [], p2: [] });
+  const timerRef = React.useRef<number | null>(null);
+  const current = turn === 0 ? p1 : p2;
+
+  const clearTimer = () => {
+    if (timerRef.current !== null) { window.clearTimeout(timerRef.current); timerRef.current = null; }
+  };
+
+  useEffect(() => () => clearTimer(), []);
+
+  const begin = () => {
+    setReaction(null);
+    setPhase('waiting');
+    const delay = 1500 + Math.random() * 2500;
+    timerRef.current = window.setTimeout(() => {
+      setStartAt(Date.now());
+      setPhase('go');
+    }, delay);
+  };
+
+  const tap = () => {
+    if (phase === 'waiting') {
+      clearTimer();
+      setPhase('foul');
+      return;
+    }
+    if (phase === 'go') {
+      const t = Date.now() - startAt;
+      setReaction(t);
+      setPhase('result');
+    }
+  };
+
+  const record = (ms: number) => {
+    const key = turn === 0 ? 'p1' : 'p2';
+    const updated = { ...times, [key]: [...times[key], ms] };
+    setTimes(updated);
+
+    const lastOfRound = turn === 1;
+    if (lastOfRound && round >= ROUNDS) {
+      const avg = (arr: number[]) => arr.reduce((a, b) => a + b, 0) / arr.length;
+      onWinner(avg(updated.p1) <= avg(updated.p2) ? p1 : p2);
+      return;
+    }
+    if (turn === 0) setTurn(1);
+    else { setTurn(0); setRound(r => r + 1); }
+    setPhase('idle');
+    setReaction(null);
+  };
+
+  const nextStep = () => {
+    if (phase === 'foul') {
+      record(2000); // 2s penalty
+    } else if (phase === 'result' && reaction !== null) {
+      record(reaction);
+    }
+  };
+
+  const bg =
+    phase === 'go' ? 'bg-success' :
+    phase === 'waiting' ? 'bg-destructive' :
+    phase === 'foul' ? 'bg-warning' :
+    'bg-muted/40';
+
+  const label =
+    phase === 'idle' ? 'Tap Start, then tap when the box turns GREEN' :
+    phase === 'waiting' ? 'Wait for green…' :
+    phase === 'go' ? 'TAP NOW!' :
+    phase === 'foul' ? 'Too early! +2.00s penalty' :
+    `${fmt(reaction ?? 0)} reaction`;
+
+  return (
+    <div className="card-interactive p-8 space-y-5">
+      <TurnHeader player={current} label={`Reaction Time — Round ${round} of ${ROUNDS} (pass the device)`} />
+      <button
+        onClick={tap}
+        disabled={phase !== 'waiting' && phase !== 'go'}
+        className={`w-full h-56 rounded-2xl ${bg} text-white text-3xl font-extrabold flex items-center justify-center transition-colors disabled:cursor-default`}
+      >
+        {label}
+      </button>
+      {phase === 'idle' && (
+        <Button variant="hero" size="lg" className="w-full" onClick={begin}>Start {current.name}'s Turn</Button>
+      )}
+      {(phase === 'result' || phase === 'foul') && (
+        <Button variant="hero" size="lg" className="w-full" onClick={nextStep}>
+          {turn === 1 && round >= ROUNDS ? 'See Winner' : 'Next Turn'}
+        </Button>
+      )}
+      <div className="grid grid-cols-2 gap-3 text-center text-sm">
+        <div className="rounded-lg bg-muted/40 p-3">
+          <p className="text-muted-foreground">{p1.name}</p>
+          <p className="font-bold">{times.p1.map(fmt).join(' • ') || '—'}</p>
+        </div>
+        <div className="rounded-lg bg-muted/40 p-3">
+          <p className="text-muted-foreground">{p2.name}</p>
+          <p className="font-bold">{times.p2.map(fmt).join(' • ') || '—'}</p>
+        </div>
+      </div>
+    </div>
+  );
+};
