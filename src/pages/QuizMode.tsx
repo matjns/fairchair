@@ -860,11 +860,17 @@ const QuizMode: React.FC = () => {
                   <div className="text-center">
                     <p className="text-sm text-muted-foreground">{player1?.name}</p>
                     <p className="text-2xl font-bold text-primary">{displayP1Score}</p>
+                    {player1Streak >= 2 && (
+                      <p className="text-xs font-semibold text-warning mt-1">🔥 {player1Streak} streak</p>
+                    )}
                   </div>
                   <span className="text-2xl text-muted-foreground">-</span>
                   <div className="text-center">
                     <p className="text-sm text-muted-foreground">{player2?.name}</p>
                     <p className="text-2xl font-bold text-accent">{displayP2Score}</p>
+                    {player2Streak >= 2 && (
+                      <p className="text-xs font-semibold text-warning mt-1">🔥 {player2Streak} streak</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -898,14 +904,32 @@ const QuizMode: React.FC = () => {
                   <div className="text-center">
                     <p className="text-sm text-muted-foreground">{player1?.name}</p>
                     <p className="text-3xl font-bold text-primary">{displayP1Score}</p>
+                    {player1BestStreak >= 2 && (
+                      <p className="text-xs font-semibold text-warning mt-1">Best streak: 🔥 {player1BestStreak}</p>
+                    )}
                   </div>
                   <span className="text-2xl text-muted-foreground">-</span>
                   <div className="text-center">
                     <p className="text-sm text-muted-foreground">{player2?.name}</p>
                     <p className="text-3xl font-bold text-accent">{displayP2Score}</p>
+                    {player2BestStreak >= 2 && (
+                      <p className="text-xs font-semibold text-warning mt-1">Best streak: 🔥 {player2BestStreak}</p>
+                    )}
                   </div>
                 </div>
               </div>
+
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => {
+                  setCurrentQuestion(null);
+                  setWinner(null);
+                  startQuiz();
+                }}
+              >
+                Play Again with Same Players
+              </Button>
             </div>
           )}
         </div>
