@@ -3,8 +3,10 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
-  ArrowLeft, Gamepad2, Trophy, Calculator, Type, Brain, Crown, ExternalLink, RotateCcw,
+  ArrowLeft, Gamepad2, Trophy, Calculator, Type, Brain, Crown, RotateCcw, Flag,
 } from 'lucide-react';
+import { Chess } from 'chess.js';
+import { Chessboard } from 'react-chessboard';
 import { supabase } from '@/integrations/supabase/client';
 import { useFamilyMembers, FamilyMember } from '@/hooks/useFamilyMembers';
 import { FamilyMemberCard } from '@/components/modes/FamilyMemberCard';
@@ -335,21 +337,98 @@ const MemorySequence: React.FC<{ p1: FamilyMember; p2: FamilyMember; onWinner: (
 };
 
 /* Chess (external board for now) */
+/* Chess — play in-browser with react-chessboard + chess.js */
 const ChessGame: React.FC<{ p1: FamilyMember; p2: FamilyMember; onWinner: (m: FamilyMember) => void }> = ({ p1, p2, onWinner }) => {
+  // Randomly assign colors so it's fair
+  const [white, black] = useMemo<[FamilyMember, FamilyMember]>(
+    () => (Math.random() < 0.5 ? [p1, p2] : [p2, p1]),
+    [p1, p2]
+  );
+  const gameRef = React.useRef(new Chess());
+  const [fen, setFen] = useState(gameRef.current.fen());
+  const [status, setStatus] = useState<string>('');
+
+  const turnColor = gameRef.current.turn() === 'w' ? 'White' : 'Black';
+  const turnPlayer = gameRef.current.turn() === 'w' ? white : black;
+
+  const checkEnd = () => {
+    const g = gameRef.current;
+    if (g.isCheckmate()) {
+      // The player who just moved (opposite of current turn) wins
+      const winner = g.turn() === 'w' ? black : white;
+      setStatus(`Checkmate! ${winner.name} wins.`);
+      setTimeout(() => onWinner(winner), 1200);
+      return true;
+    }
+    if (g.isDraw() || g.isStalemate() || g.isThreefoldRepetition() || g.isInsufficientMaterial()) {
+      setStatus(`Draw. Tap a winner below.`);
+      return true;
+    }
+    setStatus(g.inCheck() ? `${turnColor} (${turnPlayer.name}) is in check` : '');
+    return false;
+  };
+
+  const onPieceDrop = ({ sourceSquare, targetSquare }: { sourceSquare: string; targetSquare: string | null }) => {
+    if (!targetSquare) return false;
+    try {
+      const move = gameRef.current.move({ from: sourceSquare, to: targetSquare, promotion: 'q' });
+      if (!move) return false;
+      setFen(gameRef.current.fen());
+      checkEnd();
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  const resign = (loser: FamilyMember) => {
+    const winner = loser.id === white.id ? black : white;
+    setStatus(`${loser.name} resigned. ${winner.name} wins.`);
+    setTimeout(() => onWinner(winner), 800);
+  };
+
+  const restart = () => {
+    gameRef.current = new Chess();
+    setFen(gameRef.current.fen());
+    setStatus('');
+  };
+
   return (
-    <div className="card-interactive p-8 space-y-5 text-center">
-      <Crown className="w-12 h-12 text-primary mx-auto" />
-      <h3 className="text-2xl font-bold">Chess Match</h3>
-      <p className="text-muted-foreground">
-        Play a quick chess game between <span className="font-semibold text-foreground">{p1.name}</span> and <span className="font-semibold text-foreground">{p2.name}</span>.
-        Open a board, finish the match, then come back and tap the winner.
+    <div className="card-interactive p-6 space-y-4">
+      <div className="flex items-center justify-center gap-2">
+        <Crown className="w-6 h-6 text-primary" />
+        <h3 className="text-2xl font-bold">Chess Match</h3>
+      </div>
+      <div className="grid grid-cols-2 gap-3 text-center text-sm">
+        <div className="rounded-lg bg-muted/40 p-3">
+          <p className="text-muted-foreground">White</p>
+          <p className="font-bold">{white.name}</p>
+        </div>
+        <div className="rounded-lg bg-muted/40 p-3">
+          <p className="text-muted-foreground">Black</p>
+          <p className="font-bold">{black.name}</p>
+        </div>
+      </div>
+      <p className="text-center text-sm text-muted-foreground">
+        Turn: <span className="font-semibold text-foreground">{turnPlayer.name}</span> ({turnColor})
       </p>
-      <Button asChild variant="outline" size="lg">
-        <a href="https://lichess.org/setup/friend" target="_blank" rel="noreferrer">
-          <ExternalLink className="w-4 h-4 mr-2" /> Open Chess Board
-        </a>
-      </Button>
-      <div className="grid grid-cols-2 gap-3 pt-4">
+      <div className="max-w-md mx-auto">
+        <Chessboard
+          options={{
+            position: fen,
+            onPieceDrop,
+            boardOrientation: gameRef.current.turn() === 'w' ? 'white' : 'black',
+            id: 'fairchair-chess',
+          }}
+        />
+      </div>
+      {status && <p className="text-center font-semibold">{status}</p>}
+      <div className="grid grid-cols-3 gap-2 pt-2">
+        <Button variant="outline" onClick={restart}><RotateCcw className="w-4 h-4 mr-1" />Restart</Button>
+        <Button variant="outline" onClick={() => resign(white)}><Flag className="w-4 h-4 mr-1" />{white.name} resigns</Button>
+        <Button variant="outline" onClick={() => resign(black)}><Flag className="w-4 h-4 mr-1" />{black.name} resigns</Button>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
         <Button variant="hero" onClick={() => onWinner(p1)}><Trophy className="w-4 h-4 mr-2" />{p1.name} won</Button>
         <Button variant="hero" onClick={() => onWinner(p2)}><Trophy className="w-4 h-4 mr-2" />{p2.name} won</Button>
       </div>
