@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
-  ArrowLeft, Gamepad2, Trophy, Calculator, Type, Brain, Crown, RotateCcw, Flag, Zap, Hand, Dices,
+  ArrowLeft, Gamepad2, Trophy, Calculator, Type, Brain, Crown, RotateCcw, Flag, Zap,
 } from 'lucide-react';
 import { Chess } from 'chess.js';
 import { Chessboard } from 'react-chessboard';
@@ -12,7 +12,7 @@ import { useFamilyMembers, FamilyMember } from '@/hooks/useFamilyMembers';
 import { FamilyMemberCard } from '@/components/modes/FamilyMemberCard';
 import { SeatWinnerDisplay } from '@/components/modes/SeatWinnerDisplay';
 
-type GameId = 'math' | 'word' | 'memory' | 'chess' | 'reaction' | 'rps' | 'dice';
+type GameId = 'math' | 'word' | 'memory' | 'chess' | 'reaction';
 type Step = 'setup' | 'pick-game' | 'pick-players' | 'play' | 'final';
 
 const GAMES: { id: GameId; title: string; desc: string; icon: React.ComponentType<any> }[] = [
@@ -21,8 +21,6 @@ const GAMES: { id: GameId; title: string; desc: string; icon: React.ComponentTyp
   { id: 'memory', title: 'Memory Sequence', desc: 'Repeat the growing pattern. Longest streak wins.', icon: Brain },
   { id: 'chess', title: 'Chess', desc: 'Two players, one board. Checkmate to win the seat.', icon: Crown },
   { id: 'reaction', title: 'Reaction Time', desc: 'Tap the moment the screen turns green. Fastest reflex wins.', icon: Zap },
-  { id: 'rps', title: 'Rock Paper Scissors', desc: 'Best of 3. Pick in secret, reveal together. Winner takes the seat.', icon: Hand },
-  { id: 'dice', title: 'Dice Roll', desc: 'Roll two dice. Highest total wins the seat. Ties trigger a re-roll.', icon: Dices },
 ];
 
 const WORDS = ['planet', 'puzzle', 'rocket', 'butter', 'window', 'forest', 'castle', 'guitar', 'silver', 'orange', 'mighty', 'wonder'];
@@ -153,158 +151,6 @@ const GameMode: React.FC = () => {
   );
 };
 
-/* Rock Paper Scissors — best of 3, secret pick + reveal */
-type RPS = 'rock' | 'paper' | 'scissors';
-const RPS_BEATS: Record<RPS, RPS> = { rock: 'scissors', paper: 'rock', scissors: 'paper' };
-const RPS_EMOJI_LABEL: Record<RPS, string> = { rock: 'Rock', paper: 'Paper', scissors: 'Scissors' };
-
-const RPSGame: React.FC<{ p1: FamilyMember; p2: FamilyMember; onWinner: (m: FamilyMember) => void }> = ({ p1, p2, onWinner }) => {
-  const ROUNDS = 3;
-  const [round, setRound] = useState(1);
-  const [turn, setTurn] = useState<0 | 1>(0);
-  const [pick1, setPick1] = useState<RPS | null>(null);
-  const [pick2, setPick2] = useState<RPS | null>(null);
-  const [wins, setWins] = useState<{ p1: number; p2: number }>({ p1: 0, p2: 0 });
-  const [phase, setPhase] = useState<'pick' | 'reveal'>('pick');
-  const current = turn === 0 ? p1 : p2;
-
-  const choose = (c: RPS) => {
-    if (turn === 0) { setPick1(c); setTurn(1); }
-    else { setPick2(c); setPhase('reveal'); }
-  };
-
-  const next = () => {
-    let w = wins;
-    if (pick1 && pick2 && pick1 !== pick2) {
-      if (RPS_BEATS[pick1] === pick2) w = { ...w, p1: w.p1 + 1 };
-      else w = { ...w, p2: w.p2 + 1 };
-      setWins(w);
-    }
-    const needed = Math.ceil(ROUNDS / 2);
-    if (w.p1 >= needed || w.p2 >= needed || round >= ROUNDS) {
-      onWinner(w.p1 >= w.p2 ? p1 : p2);
-      return;
-    }
-    setRound(r => r + 1); setTurn(0); setPick1(null); setPick2(null); setPhase('pick');
-  };
-
-  return (
-    <div className="card-interactive p-8 space-y-5">
-      <TurnHeader player={current} label={`Rock Paper Scissors — Round ${round} of ${ROUNDS}`} />
-      {phase === 'pick' ? (
-        <>
-          <p className="text-center text-sm text-muted-foreground">
-            {turn === 0 ? `${p1.name}, pick in secret (hide the screen after).` : `Pass to ${p2.name}. Pick in secret.`}
-          </p>
-          <div className="grid grid-cols-3 gap-3">
-            {(['rock', 'paper', 'scissors'] as RPS[]).map(c => (
-              <Button key={c} variant="outline" size="lg" className="h-24 text-lg font-bold capitalize" onClick={() => choose(c)}>
-                {RPS_EMOJI_LABEL[c]}
-              </Button>
-            ))}
-          </div>
-        </>
-      ) : (
-        <>
-          <div className="grid grid-cols-2 gap-3 text-center">
-            <div className="rounded-xl bg-muted/40 p-5">
-              <p className="text-muted-foreground text-sm">{p1.name}</p>
-              <p className="text-3xl font-extrabold capitalize">{pick1}</p>
-            </div>
-            <div className="rounded-xl bg-muted/40 p-5">
-              <p className="text-muted-foreground text-sm">{p2.name}</p>
-              <p className="text-3xl font-extrabold capitalize">{pick2}</p>
-            </div>
-          </div>
-          <p className="text-center font-semibold">
-            {pick1 === pick2 ? 'Tie — no point.' :
-              RPS_BEATS[pick1!] === pick2 ? `${p1.name} wins the round!` : `${p2.name} wins the round!`}
-          </p>
-          <div className="text-center text-sm text-muted-foreground">Score — {p1.name}: {wins.p1} • {p2.name}: {wins.p2}</div>
-          <Button variant="hero" size="lg" className="w-full" onClick={next}>
-            {round >= ROUNDS ? 'See Winner' : 'Next Round'}
-          </Button>
-        </>
-      )}
-    </div>
-  );
-};
-
-/* Dice Roll — highest total wins, ties re-roll */
-const DiceRoll: React.FC<{ p1: FamilyMember; p2: FamilyMember; onWinner: (m: FamilyMember) => void }> = ({ p1, p2, onWinner }) => {
-  const [turn, setTurn] = useState<0 | 1>(0);
-  const [rolling, setRolling] = useState(false);
-  const [dice, setDice] = useState<[number, number] | null>(null);
-  const [totals, setTotals] = useState<{ p1?: number; p2?: number }>({});
-  const [tieRound, setTieRound] = useState(0);
-  const current = turn === 0 ? p1 : p2;
-
-  const roll = () => {
-    setRolling(true);
-    let ticks = 0;
-    const id = window.setInterval(() => {
-      setDice([1 + Math.floor(Math.random() * 6), 1 + Math.floor(Math.random() * 6)]);
-      ticks++;
-      if (ticks > 12) {
-        window.clearInterval(id);
-        const final: [number, number] = [1 + Math.floor(Math.random() * 6), 1 + Math.floor(Math.random() * 6)];
-        setDice(final);
-        setRolling(false);
-      }
-    }, 80);
-  };
-
-  const lockIn = () => {
-    if (!dice) return;
-    const total = dice[0] + dice[1];
-    if (turn === 0) {
-      setTotals({ p1: total }); setTurn(1); setDice(null);
-    } else {
-      const next = { ...totals, p2: total };
-      if (next.p1 === next.p2) {
-        setTieRound(t => t + 1); setTotals({}); setTurn(0); setDice(null);
-      } else {
-        onWinner((next.p1 ?? 0) > (next.p2 ?? 0) ? p1 : p2);
-      }
-    }
-  };
-
-  return (
-    <div className="card-interactive p-8 space-y-5">
-      <TurnHeader player={current} label={tieRound > 0 ? `Dice Roll — Tie-Breaker ${tieRound}` : 'Dice Roll'} />
-      <div className="flex items-center justify-center gap-6 py-4">
-        {[0, 1].map(i => (
-          <div key={i} className={`w-28 h-28 rounded-2xl bg-muted/40 flex items-center justify-center text-6xl font-extrabold ${rolling ? 'animate-pulse' : ''}`}>
-            {dice ? dice[i] : '—'}
-          </div>
-        ))}
-      </div>
-      {dice && !rolling && (
-        <p className="text-center text-lg font-semibold">Total: {dice[0] + dice[1]}</p>
-      )}
-      <div className="grid grid-cols-2 gap-3 text-center text-sm">
-        <div className="rounded-lg bg-muted/40 p-3">
-          <p className="text-muted-foreground">{p1.name}</p>
-          <p className="font-bold text-lg">{totals.p1 ?? '—'}</p>
-        </div>
-        <div className="rounded-lg bg-muted/40 p-3">
-          <p className="text-muted-foreground">{p2.name}</p>
-          <p className="font-bold text-lg">{totals.p2 ?? '—'}</p>
-        </div>
-      </div>
-      {!dice || rolling ? (
-        <Button variant="hero" size="lg" className="w-full" disabled={rolling} onClick={roll}>
-          {rolling ? 'Rolling…' : `${current.name}, Roll the Dice`}
-        </Button>
-      ) : (
-        <Button variant="hero" size="lg" className="w-full" onClick={lockIn}>
-          {turn === 1 ? 'Reveal Winner' : 'Lock In & Pass'}
-        </Button>
-      )}
-    </div>
-  );
-};
-
 /* ---------- Individual games ---------- */
 
 const GamePlay: React.FC<{ game: GameId; p1: FamilyMember; p2: FamilyMember; onWinner: (m: FamilyMember) => void; }> = ({ game, p1, p2, onWinner }) => {
@@ -312,8 +158,6 @@ const GamePlay: React.FC<{ game: GameId; p1: FamilyMember; p2: FamilyMember; onW
   if (game === 'word') return <WordScramble p1={p1} p2={p2} onWinner={onWinner} />;
   if (game === 'memory') return <MemorySequence p1={p1} p2={p2} onWinner={onWinner} />;
   if (game === 'reaction') return <ReactionTime p1={p1} p2={p2} onWinner={onWinner} />;
-  if (game === 'rps') return <RPSGame p1={p1} p2={p2} onWinner={onWinner} />;
-  if (game === 'dice') return <DiceRoll p1={p1} p2={p2} onWinner={onWinner} />;
   return <ChessGame p1={p1} p2={p2} onWinner={onWinner} />;
 };
 
