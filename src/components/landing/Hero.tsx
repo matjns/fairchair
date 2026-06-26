@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { CarIcon } from '@/components/icons/CarIcon';
 import { ChairIcon } from '@/components/icons/ChairIcon';
-import { ArrowRight, Users, Sparkles, Car, UserCircle, ListChecks, Brain, Shuffle, LucideIcon } from 'lucide-react';
+import { ArrowRight, Users, Sparkles, Car, UserCircle, ListChecks, Brain, Shuffle, LucideIcon, Trophy } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -106,11 +106,11 @@ export const Hero: React.FC = () => {
               type="button"
               variant="outline" 
               size="xl"
-              onClick={() => navigate('/family-profiles')}
+              onClick={() => navigate('/assignments')}
               className="cursor-pointer"
             >
-              <Users className="w-5 h-5 mr-2" />
-              Manage Family
+              <Trophy className="w-5 h-5 mr-2" />
+              View Assignments
             </Button>
           </div>
         )}
