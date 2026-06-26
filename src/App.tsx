@@ -9,7 +9,8 @@ import Assignments from "./pages/Assignments";
 import ChoreMode from "./pages/ChoreMode";
 import QuizMode from "./pages/QuizMode";
 import RandomMode from "./pages/RandomMode";
-import CardDrawMode from "./pages/CardDrawMode";
+import GameMode from "./pages/GameMode";
+import CustomMode from "./pages/CustomMode";
 import FamilyProfiles from "./pages/FamilyProfiles";
 import NotFound from "./pages/NotFound";
 
@@ -29,7 +30,8 @@ const App = () => (
           <Route path="/chore-mode" element={<ChoreMode />} />
           <Route path="/quiz-mode" element={<QuizMode />} />
           <Route path="/random-mode" element={<RandomMode />} />
-          <Route path="/card-draw-mode" element={<CardDrawMode />} />
+          <Route path="/game-mode" element={<GameMode />} />
+          <Route path="/custom-mode" element={<CustomMode />} />
           <Route path="/family-profiles" element={<FamilyProfiles />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />

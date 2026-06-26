@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ListChecks, Brain, Trophy, Shuffle, ArrowRight, Spade } from 'lucide-react';
+import { ListChecks, Brain, Trophy, Shuffle, ArrowRight, Gamepad2, Settings2 } from 'lucide-react';
 
 const modes = [
   {
@@ -28,11 +28,19 @@ const modes = [
     gradient: 'from-primary to-primary/70',
   },
   {
-    id: 'card-draw',
-    icon: Spade,
-    title: 'Card Draw Mode',
-    description: 'Each player draws a card. Highest rank wins the seat! Quick, easy, and a little bit of luck.',
-    features: ['Lightning fast', 'Best-of rounds', 'Sudden-death draws'],
+    id: 'game',
+    icon: Gamepad2,
+    title: 'Game Mode',
+    description: 'Compete in fun learning games like chess, math duels, word scrambles, and memory challenges to win the seat.',
+    features: ['Chess & math', 'Memory & words', 'Educational play'],
+    gradient: 'from-primary to-primary/70',
+  },
+  {
+    id: 'custom',
+    icon: Settings2,
+    title: 'Custom Mode',
+    description: 'Make your own rules! Set the challenge, pick the rounds, and decide the winner — fully customizable.',
+    features: ['Your rules', 'Any challenge', 'Total flexibility'],
     gradient: 'from-primary to-primary/70',
   },
 ];
@@ -49,14 +57,14 @@ export const Modes: React.FC = () => {
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-16">
           <h2 className="text-3xl md:text-4xl font-extrabold text-foreground mb-4">
-            Four Fun Ways to Decide
+            Five Fun Ways to Decide
           </h2>
           <p className="text-lg text-muted-foreground max-w-xl mx-auto">
             Pick the mode that works best for your family
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 max-w-6xl mx-auto">
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
           {modes.map((mode) => (
             <button 
               key={mode.title}
