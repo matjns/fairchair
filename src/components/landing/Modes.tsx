@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ListChecks, Brain, Trophy, Shuffle, ArrowRight } from 'lucide-react';
+import { ListChecks, Brain, Trophy, Shuffle, ArrowRight, Spade } from 'lucide-react';
 
 const modes = [
   {
@@ -15,8 +15,8 @@ const modes = [
     id: 'quiz',
     icon: Brain,
     title: 'Quiz Mode',
-    description: 'Answer trivia questions to compete for seats! Choose from different topics and difficulty levels.',
-    features: ['Multiple topics', 'Timed challenges', 'Learn while you play'],
+    description: 'Answer trivia questions to compete for seats! Stopwatch decides ties — fastest correct wins.',
+    features: ['Multiple topics', 'Millisecond stopwatch', 'Sudden-death tiebreakers'],
     gradient: 'from-primary to-primary/70',
   },
   {
@@ -25,6 +25,14 @@ const modes = [
     title: 'Random/Fair Mode',
     description: 'Let the app randomly assign seats based on preferences while ensuring everyone gets fair turns over time.',
     features: ['Respects preferences', 'Tracks seat history', 'Automatic fairness'],
+    gradient: 'from-primary to-primary/70',
+  },
+  {
+    id: 'card-draw',
+    icon: Spade,
+    title: 'Card Draw Mode',
+    description: 'Each player draws a card. Highest rank wins the seat! Quick, easy, and a little bit of luck.',
+    features: ['Lightning fast', 'Best-of rounds', 'Sudden-death draws'],
     gradient: 'from-primary to-primary/70',
   },
 ];
@@ -48,7 +56,7 @@ export const Modes: React.FC = () => {
           </p>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 max-w-6xl mx-auto">
           {modes.map((mode) => (
             <button 
               key={mode.title}
