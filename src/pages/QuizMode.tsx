@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ChairIcon } from '@/components/icons/ChairIcon';
 import { 
-  Sparkles, ArrowLeft, Brain, Clock, Users, Trophy, Zap, Check, ChevronRight
+  Sparkles, ArrowLeft, Brain, Timer, Users, Trophy, Zap, Check, ChevronRight, Swords
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useFamilyMembers, FamilyMember } from '@/hooks/useFamilyMembers';
@@ -33,10 +33,20 @@ type Difficulty = 'easy' | 'medium' | 'hard';
 
 const TOPICS = ['Science', 'Math', 'Geography', 'History', 'Animals', 'Sports', 'Presidents', 'Other'];
 const COUNTDOWN_SECONDS = 3;
-const DIFFICULTY_CONFIG: Record<Difficulty, { time: number; label: string; color: string }> = {
-  easy: { time: 45, label: 'Easy', color: 'bg-success' },
-  medium: { time: 30, label: 'Medium', color: 'bg-warning' },
-  hard: { time: 20, label: 'Hard', color: 'bg-destructive' },
+const DIFFICULTY_CONFIG: Record<Difficulty, { label: string; color: string }> = {
+  easy: { label: 'Easy', color: 'bg-success' },
+  medium: { label: 'Medium', color: 'bg-warning' },
+  hard: { label: 'Hard', color: 'bg-destructive' },
+};
+// Soft cap so a player can't stall forever. Stopwatch counts up to this then auto-times out.
+const MAX_STOPWATCH_MS = 60_000;
+
+const formatStopwatch = (ms: number) => {
+  const clamped = Math.max(0, Math.min(ms, MAX_STOPWATCH_MS));
+  const totalSeconds = clamped / 1000;
+  const seconds = Math.floor(totalSeconds);
+  const millis = Math.floor(clamped - seconds * 1000);
+  return `${seconds.toString().padStart(2, '0')}.${millis.toString().padStart(3, '0')}`;
 };
 
 const QUIZ_LENGTH_OPTIONS = [
@@ -95,7 +105,7 @@ const QuizMode: React.FC = () => {
   const [currentQuestion, setCurrentQuestion] = useState<QuizQuestion | null>(null);
   const [shuffledAnswers, setShuffledAnswers] = useState<string[]>([]);
   const [countdown, setCountdown] = useState(COUNTDOWN_SECONDS);
-  const [timeLeft, setTimeLeft] = useState(DIFFICULTY_CONFIG.hard.time);
+  const [elapsedMs, setElapsedMs] = useState(0);
   const [player1Answer, setPlayer1Answer] = useState<string | null>(null);
   const [player2Answer, setPlayer2Answer] = useState<string | null>(null);
   const [player1Time, setPlayer1Time] = useState<number | null>(null);
@@ -104,6 +114,9 @@ const QuizMode: React.FC = () => {
   const [player2Score, setPlayer2Score] = useState<number>(0);
   const [winner, setWinner] = useState<FamilyMember | null>(null);
   const [questionStartTime, setQuestionStartTime] = useState<number>(0);
+  const [isTiebreaker, setIsTiebreaker] = useState<boolean>(false);
+  const [tiebreakerRound, setTiebreakerRound] = useState<number>(0);
+  const [roundWinnerId, setRoundWinnerId] = useState<string | null>(null);
   const [usedQuestionIds, setUsedQuestionIds] = useState<string[]>([]);
   const [userHistoryIds, setUserHistoryIds] = useState<string[]>([]);
   const [player1Streak, setPlayer1Streak] = useState<number>(0);
@@ -301,6 +314,8 @@ const QuizMode: React.FC = () => {
     setPlayer2Answer(null);
     setPlayer1Time(null);
     setPlayer2Time(null);
+    setRoundWinnerId(null);
+    setElapsedMs(0);
     setCountdown(COUNTDOWN_SECONDS);
     setStep('countdown');
   };
@@ -313,6 +328,8 @@ const QuizMode: React.FC = () => {
     setPlayer2Streak(0);
     setPlayer1BestStreak(0);
     setPlayer2BestStreak(0);
+    setIsTiebreaker(false);
+    setTiebreakerRound(0);
     // Keep usedQuestionIds - don't reset! This tracks questions used in this session
     // Combined with userHistoryIds, this prevents all repeats
     setWinner(null);
@@ -325,56 +342,58 @@ const QuizMode: React.FC = () => {
     
     if (countdown <= 0) {
       setStep('question-p1');
-      setTimeLeft(DIFFICULTY_CONFIG[selectedDifficulty].time);
+      setElapsedMs(0);
       setQuestionStartTime(Date.now());
       return;
     }
     
     const timer = setTimeout(() => setCountdown(c => c - 1), 1000);
     return () => clearTimeout(timer);
-  }, [step, countdown, selectedDifficulty]);
+  }, [step, countdown]);
 
-  // Question timer effect for Player 1
+  // Stopwatch for Player 1 (counts UP with millisecond precision)
   useEffect(() => {
     if (step !== 'question-p1') return;
-    
-    if (timeLeft <= 0) {
-      // Time ran out for player 1
-      setPlayer1Answer('__timeout__');
-      setPlayer1Time(DIFFICULTY_CONFIG[selectedDifficulty].time * 1000);
-      setStep('pass-device');
-      return;
-    }
-    
+
     if (player1Answer) {
       setStep('pass-device');
       return;
     }
-    
-    const timer = setTimeout(() => setTimeLeft(t => t - 1), 1000);
-    return () => clearTimeout(timer);
-  }, [step, timeLeft, player1Answer, selectedDifficulty]);
 
-  // Question timer effect for Player 2
-  useEffect(() => {
-    if (step !== 'question-p2') return;
-    
-    if (timeLeft <= 0) {
-      // Time ran out for player 2
-      setPlayer2Answer('__timeout__');
-      setPlayer2Time(DIFFICULTY_CONFIG[selectedDifficulty].time * 1000);
-      determineRoundWinner();
+    if (elapsedMs >= MAX_STOPWATCH_MS) {
+      setPlayer1Answer('__timeout__');
+      setPlayer1Time(MAX_STOPWATCH_MS);
+      setStep('pass-device');
       return;
     }
-    
+
+    const tick = setInterval(() => {
+      setElapsedMs(Date.now() - questionStartTime);
+    }, 31);
+    return () => clearInterval(tick);
+  }, [step, elapsedMs, player1Answer, questionStartTime]);
+
+  // Stopwatch for Player 2
+  useEffect(() => {
+    if (step !== 'question-p2') return;
+
     if (player2Answer) {
       determineRoundWinner();
       return;
     }
-    
-    const timer = setTimeout(() => setTimeLeft(t => t - 1), 1000);
-    return () => clearTimeout(timer);
-  }, [step, timeLeft, player2Answer, selectedDifficulty]);
+
+    if (elapsedMs >= MAX_STOPWATCH_MS) {
+      setPlayer2Answer('__timeout__');
+      setPlayer2Time(MAX_STOPWATCH_MS);
+      determineRoundWinner();
+      return;
+    }
+
+    const tick = setInterval(() => {
+      setElapsedMs(Date.now() - questionStartTime);
+    }, 31);
+    return () => clearInterval(tick);
+  }, [step, elapsedMs, player2Answer, questionStartTime]);
 
   const handlePlayer1Answer = (answer: string) => {
     const answerTime = Date.now() - questionStartTime;
@@ -389,24 +408,49 @@ const QuizMode: React.FC = () => {
   };
 
   const startPlayer2Turn = () => {
-    setTimeLeft(DIFFICULTY_CONFIG[selectedDifficulty].time);
+    setElapsedMs(0);
     setQuestionStartTime(Date.now());
     setStep('question-p2');
   };
 
   const determineRoundWinner = useCallback(() => {
     if (!currentQuestion || !player1 || !player2) return;
-    
+
     const correct = currentQuestion.correct_answer;
     const p1Correct = player1Answer === correct;
     const p2Correct = player2Answer === correct;
-    
-    // Update scores - store the new values directly to avoid display issues
-    const newP1Score = player1Score + (p1Correct ? 1 : 0);
-    const newP2Score = player2Score + (p2Correct ? 1 : 0);
-    
+    const p1Timeout = player1Answer === '__timeout__';
+    const p2Timeout = player2Answer === '__timeout__';
+    const p1Time = player1Time ?? MAX_STOPWATCH_MS;
+    const p2Time = player2Time ?? MAX_STOPWATCH_MS;
+
+    // Round winner rules:
+    //  • If exactly one player is correct → that player wins the round.
+    //  • If both correct OR both wrong (same outcome) → faster stopwatch wins.
+    //  • If both timed out → no winner this round.
+    //  • If both have the SAME stopwatch time → null (triggers sudden-death tiebreaker at end).
+    let roundWinner: 'p1' | 'p2' | null = null;
+    if (p1Timeout && p2Timeout) {
+      roundWinner = null;
+    } else if (p1Correct && !p2Correct) {
+      roundWinner = 'p1';
+    } else if (p2Correct && !p1Correct) {
+      roundWinner = 'p2';
+    } else {
+      // Same outcome (both correct OR both wrong) → fastest wins
+      if (p1Time < p2Time) roundWinner = 'p1';
+      else if (p2Time < p1Time) roundWinner = 'p2';
+      else roundWinner = null; // identical time → no point, fall through to tiebreaker logic
+    }
+
+    const newP1Score = player1Score + (roundWinner === 'p1' ? 1 : 0);
+    const newP2Score = player2Score + (roundWinner === 'p2' ? 1 : 0);
+
     setPlayer1Score(newP1Score);
     setPlayer2Score(newP2Score);
+    setRoundWinnerId(
+      roundWinner === 'p1' ? player1.id : roundWinner === 'p2' ? player2.id : null,
+    );
 
     const newP1Streak = p1Correct ? player1Streak + 1 : 0;
     const newP2Streak = p2Correct ? player2Streak + 1 : 0;
@@ -416,27 +460,40 @@ const QuizMode: React.FC = () => {
     setPlayer2BestStreak(s => Math.max(s, newP2Streak));
 
     setStep('round-result');
-  }, [currentQuestion, player1, player2, player1Answer, player2Answer, player1Score, player2Score, player1Streak, player2Streak]);
+  }, [currentQuestion, player1, player2, player1Answer, player2Answer, player1Time, player2Time, player1Score, player2Score, player1Streak, player2Streak]);
 
   const proceedToNextRound = async () => {
-    if (currentRound >= quizLength) {
-      // Determine final winner - scores are already updated by determineRoundWinner
-      let finalWinner: FamilyMember | null = null;
-      
-      if (player1Score > player2Score) {
-        finalWinner = player1;
-      } else if (player2Score > player1Score) {
-        finalWinner = player2;
-      } else {
-        // Tie - use total time as tiebreaker (lower is better)
-        finalWinner = (player1Time || Infinity) < (player2Time || Infinity) ? player1 : player2;
-      }
-      
-      setWinner(finalWinner);
-      if (finalWinner) {
+    // If we're already in a sudden-death tiebreaker round, a decisive winner ends the game.
+    if (isTiebreaker) {
+      if (roundWinnerId && player1 && player2) {
+        const finalWinner = roundWinnerId === player1.id ? player1 : player2;
+        setWinner(finalWinner);
         recordSeating(finalWinner.id, 'best-seat', 'preferred', 'quiz');
+        setStep('final-result');
+        return;
       }
-      setStep('final-result');
+      // Still tied (no winner this round) → another sudden-death question
+      setTiebreakerRound(n => n + 1);
+      await startRound();
+      return;
+    }
+
+    if (currentRound >= quizLength) {
+      // Main quiz complete
+      if (player1Score > player2Score && player1) {
+        setWinner(player1);
+        recordSeating(player1.id, 'best-seat', 'preferred', 'quiz');
+        setStep('final-result');
+      } else if (player2Score > player1Score && player2) {
+        setWinner(player2);
+        recordSeating(player2.id, 'best-seat', 'preferred', 'quiz');
+        setStep('final-result');
+      } else {
+        // Tied on rounds won → sudden-death tiebreaker (one question, repeat until decisive)
+        setIsTiebreaker(true);
+        setTiebreakerRound(1);
+        await startRound();
+      }
     } else {
       setCurrentRound(prev => prev + 1);
       await startRound();
@@ -457,6 +514,9 @@ const QuizMode: React.FC = () => {
     setPlayer2Streak(0);
     setPlayer1BestStreak(0);
     setPlayer2BestStreak(0);
+    setIsTiebreaker(false);
+    setTiebreakerRound(0);
+    setRoundWinnerId(null);
     setCurrentQuestion(null);
     setWinner(null);
     setUsedQuestionIds([]);
@@ -475,9 +535,6 @@ const QuizMode: React.FC = () => {
     );
   }
 
-  const answerTimeSeconds = DIFFICULTY_CONFIG[selectedDifficulty].time;
-
-  // Scores are now directly updated, no need for display calculation
   const displayP1Score = player1Score;
   const displayP2Score = player2Score;
 
