@@ -124,7 +124,7 @@ export const Hero: React.FC = () => {
           <FeaturePill icon={Users} text="Family Profiles" />
           <FeaturePill icon={ListChecks} text="Chore Tracking" />
           <FeaturePill icon={Brain} text="Fun Quizzes" />
-          <FeaturePill icon={Shuffle} text="Random/Fair" />
+          <FeaturePill icon={Shuffle} text="Random" />
         </div>
       </div>
 
