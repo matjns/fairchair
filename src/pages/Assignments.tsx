@@ -448,4 +448,58 @@ const ModeBadge: React.FC<{ mode: 'chore' | 'quiz' | 'random' }> = ({ mode }) =>
   );
 };
 
+const SeatLayout: React.FC<{
+  seatConfig: VehicleSeatConfig;
+  seatedMembers: (FamilyMember | null)[];
+  winnerSeatIndex: number;
+  rowLabel: (idx: number, total: number) => string;
+}> = ({ seatConfig, seatedMembers, winnerSeatIndex, rowLabel }) => {
+  let seatCounter = 0;
+  return (
+    <div className="space-y-4">
+      {seatConfig.seatsPerRow.map((seatCount, rowIdx) => {
+        const seats = [];
+        for (let s = 0; s < seatCount; s++) {
+          const idx = seatCounter++;
+          const member = seatedMembers[idx];
+          const isWinner = idx === winnerSeatIndex;
+          seats.push(
+            <div
+              key={idx}
+              className={`flex-1 min-h-[80px] rounded-xl border-2 flex flex-col items-center justify-center p-2 transition-colors ${
+                isWinner
+                  ? 'border-warning bg-warning/10 ring-2 ring-warning/40'
+                  : member
+                  ? 'border-primary/40 bg-primary/5'
+                  : 'border-dashed border-border bg-muted/30'
+              }`}
+            >
+              <ChairIcon
+                className={`w-6 h-6 mb-1 ${isWinner ? 'text-warning' : member ? 'text-primary' : 'text-muted-foreground'}`}
+                filled
+              />
+              <span className="text-sm font-semibold text-foreground text-center leading-tight">
+                {member?.name ?? 'Empty'}
+              </span>
+              {isWinner && member && (
+                <span className="text-[10px] uppercase tracking-wide font-bold text-warning mt-0.5">
+                  Winner
+                </span>
+              )}
+            </div>,
+          );
+        }
+        return (
+          <div key={rowIdx}>
+            <div className="text-xs uppercase tracking-wide font-semibold text-muted-foreground mb-2">
+              {rowLabel(rowIdx, seatConfig.seatsPerRow.length)} Row
+            </div>
+            <div className="flex gap-3">{seats}</div>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
 export default Assignments;
