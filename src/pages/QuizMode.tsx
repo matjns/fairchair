@@ -882,8 +882,14 @@ const QuizMode: React.FC = () => {
           {step === 'round-result' && currentQuestion && (
             <div className="space-y-6">
               <div className="text-center">
-                <p className="text-sm text-muted-foreground mb-2">Round {currentRound} of {quizLength}</p>
-                <h2 className="text-2xl font-bold text-foreground">Round Complete!</h2>
+                <p className="text-sm text-muted-foreground mb-2">
+                  {isTiebreaker ? `Sudden Death · Tiebreaker #${tiebreakerRound}` : `Round ${currentRound} of ${quizLength}`}
+                </p>
+                <h2 className="text-2xl font-bold text-foreground">
+                  {roundWinnerId
+                    ? `${roundWinnerId === player1?.id ? player1?.name : player2?.name} wins the round!`
+                    : 'No winner this round'}
+                </h2>
               </div>
 
               <div className="p-4 bg-muted/50 rounded-xl">
@@ -897,9 +903,9 @@ const QuizMode: React.FC = () => {
                   <p className="text-sm text-muted-foreground">
                     {player1Answer === '__timeout__' ? '⏰ Timeout' : player1Answer === currentQuestion.correct_answer ? '✓ Correct' : '✗ Wrong'}
                   </p>
-                  {player1Time && player1Answer !== '__timeout__' && (
+                  {player1Time != null && player1Answer !== '__timeout__' && (
                     <p className="text-xs text-muted-foreground mt-1">
-                      {(player1Time / 1000).toFixed(1)}s
+                      ⏱ {formatStopwatch(player1Time)}s
                     </p>
                   )}
                 </div>
@@ -908,9 +914,9 @@ const QuizMode: React.FC = () => {
                   <p className="text-sm text-muted-foreground">
                     {player2Answer === '__timeout__' ? '⏰ Timeout' : player2Answer === currentQuestion.correct_answer ? '✓ Correct' : '✗ Wrong'}
                   </p>
-                  {player2Time && player2Answer !== '__timeout__' && (
+                  {player2Time != null && player2Answer !== '__timeout__' && (
                     <p className="text-xs text-muted-foreground mt-1">
-                      {(player2Time / 1000).toFixed(1)}s
+                      ⏱ {formatStopwatch(player2Time)}s
                     </p>
                   )}
                 </div>
@@ -943,7 +949,11 @@ const QuizMode: React.FC = () => {
                 className="w-full"
                 onClick={proceedToNextRound}
               >
-                {currentRound >= quizLength ? 'See Final Results' : 'Next Question'}
+                {isTiebreaker
+                  ? (roundWinnerId ? 'See Final Results' : 'Another Tiebreaker!')
+                  : currentRound >= quizLength
+                    ? (player1Score === player2Score ? 'Sudden Death!' : 'See Final Results')
+                    : 'Next Question'}
               </Button>
             </div>
           )}
