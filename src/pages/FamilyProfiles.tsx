@@ -12,6 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useFamilyMembers, FamilyMember } from '@/hooks/useFamilyMembers';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { FAVORITE_SEAT_OPTIONS } from '@/data/vehicleRows';
 
 const AVATAR_COLORS = [
   { name: 'primary', class: 'bg-primary', label: 'Blue' },
@@ -52,6 +53,7 @@ const FamilyProfiles: React.FC = () => {
   const [editName, setEditName] = useState('');
   const [editColor, setEditColor] = useState('');
   const [editIcon, setEditIcon] = useState('user');
+  const [editFavoriteSeat, setEditFavoriteSeat] = useState<string>('');
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -92,6 +94,7 @@ const FamilyProfiles: React.FC = () => {
     setEditName(member.name);
     setEditColor(member.avatar_color);
     setEditIcon(member.avatar_icon || 'user');
+    setEditFavoriteSeat(member.favorite_seat || '');
   };
 
   const cancelEditing = () => {
@@ -99,6 +102,7 @@ const FamilyProfiles: React.FC = () => {
     setEditName('');
     setEditColor('');
     setEditIcon('user');
+    setEditFavoriteSeat('');
   };
 
   const saveEditing = async () => {
@@ -110,7 +114,8 @@ const FamilyProfiles: React.FC = () => {
         .update({ 
           name: editName.trim(), 
           avatar_color: editColor,
-          avatar_icon: editIcon 
+          avatar_icon: editIcon,
+          favorite_seat: editFavoriteSeat || null,
         })
         .eq('id', editingId);
       
