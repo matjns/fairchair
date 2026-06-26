@@ -162,3 +162,24 @@ export const FAVORITE_SEAT_OPTIONS: { id: string; label: string }[] = [
   { id: 'back-middle', label: 'Back Row · Middle' },
   { id: 'back-right', label: 'Back Row · Right' },
 ];
+
+// Favorite seat options that actually exist in the given vehicle's layout.
+// Front-row seats are excluded (adults sit there).
+export function getFavoriteSeatOptionsForVehicle(
+  make?: string | null,
+  model?: string | null,
+): { id: string; label: string }[] {
+  const config =
+    make && model
+      ? getVehicleSeatConfig(make, model)
+      : { rows: 2, seatsPerRow: [2, 3] as number[] };
+  const opts: { id: string; label: string }[] = [];
+  config.seatsPerRow.forEach((seatsInRow, rowIdx) => {
+    if (rowIdx === 0) return; // skip front row
+    for (let colIdx = 0; colIdx < seatsInRow; colIdx++) {
+      const d = getSeatDescriptor(rowIdx, colIdx, config.rows, seatsInRow);
+      opts.push({ id: d.id, label: d.label.replace(' ', ' Row · ') });
+    }
+  });
+  return opts;
+}
