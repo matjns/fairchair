@@ -27,12 +27,14 @@ const Auth: React.FC = () => {
   const { toast } = useToast();
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const redirectTo = params.get('redirect') || '/';
     // If already logged in, send them home — no interstitial.
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) navigate('/');
+      if (session?.user) navigate(redirectTo);
     });
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) navigate('/');
+      if (session?.user) navigate(redirectTo);
     });
     return () => subscription.unsubscribe();
   }, [navigate]);
