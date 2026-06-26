@@ -42,11 +42,22 @@ const GameMode: React.FC = () => {
   const kids = familyMembers.filter(m => !m.is_parent);
 
   useEffect(() => {
-    (async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+    let redirectTimer: number | null = null;
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
       setAuthed(!!session?.user);
-      if (!session?.user) navigate('/auth?redirect=/game-mode');
-    })();
+      if (redirectTimer !== null) { window.clearTimeout(redirectTimer); redirectTimer = null; }
+    });
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setAuthed(!!session?.user);
+      if (!session?.user) {
+        // Give onAuthStateChange a brief moment to hydrate before bouncing
+        redirectTimer = window.setTimeout(() => navigate('/auth?redirect=/game-mode'), 400);
+      }
+    });
+    return () => {
+      subscription.unsubscribe();
+      if (redirectTimer !== null) window.clearTimeout(redirectTimer);
+    };
   }, [navigate]);
 
   const reset = () => {
