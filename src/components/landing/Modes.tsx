@@ -22,7 +22,7 @@ const modes = [
   {
     id: 'random',
     icon: Shuffle,
-    title: 'Random/Fair Mode',
+    title: 'Random Mode',
     description: 'Let the app randomly assign seats based on preferences while ensuring everyone gets fair turns over time.',
     features: ['Respects preferences', 'Tracks seat history', 'Automatic fairness'],
     gradient: 'from-primary to-primary/70',

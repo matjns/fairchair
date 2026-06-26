@@ -31,7 +31,7 @@ const MODE_META: Record<
 > = {
   chore: { label: 'Chore Mode', icon: ListChecks, color: 'text-success' },
   quiz: { label: 'Quiz Mode', icon: Brain, color: 'text-primary' },
-  random: { label: 'Random / Fair Mode', icon: Shuffle, color: 'text-warning' },
+  random: { label: 'Random Mode', icon: Shuffle, color: 'text-warning' },
 };
 
 const Assignments: React.FC = () => {

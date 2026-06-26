@@ -244,7 +244,7 @@ const RandomMode: React.FC = () => {
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-full mb-4">
             <Shuffle className="w-5 h-5 text-primary" />
-            <span className="text-primary font-semibold">Random/Fair Mode</span>
+            <span className="text-primary font-semibold">Random Mode</span>
           </div>
           <h1 className="text-3xl font-bold text-foreground mb-2">Fair & Random Selection!</h1>
           <p className="text-muted-foreground">Everyone gets a fair turn—those who had it less recently have better odds.</p>
