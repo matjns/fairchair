@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
-  ArrowLeft, Gamepad2, Trophy, Calculator, Type, Brain, Crown, RotateCcw, Flag, Zap,
+  ArrowLeft, Gamepad2, Trophy, Calculator, Type, Brain, Crown, RotateCcw, Flag, Zap, Hand, Dices,
 } from 'lucide-react';
 import { Chess } from 'chess.js';
 import { Chessboard } from 'react-chessboard';
@@ -12,7 +12,7 @@ import { useFamilyMembers, FamilyMember } from '@/hooks/useFamilyMembers';
 import { FamilyMemberCard } from '@/components/modes/FamilyMemberCard';
 import { SeatWinnerDisplay } from '@/components/modes/SeatWinnerDisplay';
 
-type GameId = 'math' | 'word' | 'memory' | 'chess' | 'reaction';
+type GameId = 'math' | 'word' | 'memory' | 'chess' | 'reaction' | 'rps' | 'dice';
 type Step = 'setup' | 'pick-game' | 'pick-players' | 'play' | 'final';
 
 const GAMES: { id: GameId; title: string; desc: string; icon: React.ComponentType<any> }[] = [
@@ -21,6 +21,8 @@ const GAMES: { id: GameId; title: string; desc: string; icon: React.ComponentTyp
   { id: 'memory', title: 'Memory Sequence', desc: 'Repeat the growing pattern. Longest streak wins.', icon: Brain },
   { id: 'chess', title: 'Chess', desc: 'Two players, one board. Checkmate to win the seat.', icon: Crown },
   { id: 'reaction', title: 'Reaction Time', desc: 'Tap the moment the screen turns green. Fastest reflex wins.', icon: Zap },
+  { id: 'rps', title: 'Rock Paper Scissors', desc: 'Best of 3. Pick in secret, reveal together. Winner takes the seat.', icon: Hand },
+  { id: 'dice', title: 'Dice Roll', desc: 'Roll two dice. Highest total wins the seat. Ties trigger a re-roll.', icon: Dices },
 ];
 
 const WORDS = ['planet', 'puzzle', 'rocket', 'butter', 'window', 'forest', 'castle', 'guitar', 'silver', 'orange', 'mighty', 'wonder'];
@@ -147,6 +149,8 @@ const GamePlay: React.FC<{ game: GameId; p1: FamilyMember; p2: FamilyMember; onW
   if (game === 'word') return <WordScramble p1={p1} p2={p2} onWinner={onWinner} />;
   if (game === 'memory') return <MemorySequence p1={p1} p2={p2} onWinner={onWinner} />;
   if (game === 'reaction') return <ReactionTime p1={p1} p2={p2} onWinner={onWinner} />;
+  if (game === 'rps') return <RPSGame p1={p1} p2={p2} onWinner={onWinner} />;
+  if (game === 'dice') return <DiceRoll p1={p1} p2={p2} onWinner={onWinner} />;
   return <ChessGame p1={p1} p2={p2} onWinner={onWinner} />;
 };
 
