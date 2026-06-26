@@ -669,7 +669,7 @@ const QuizMode: React.FC = () => {
                     onClick={() => setSelectedDifficulty(difficulty)}
                   >
                     <span className="text-lg font-bold capitalize">{difficulty}</span>
-                    <span className="text-xs opacity-70">{DIFFICULTY_CONFIG[difficulty].time}s timer</span>
+                    <span className="text-xs opacity-70">stopwatch</span>
                   </Button>
                 ))}
               </div>
@@ -752,13 +752,15 @@ const QuizMode: React.FC = () => {
           {/* Countdown */}
           {step === 'countdown' && (
             <div className="text-center py-12">
-              <p className="text-muted-foreground mb-2">Round {currentRound} of {quizLength}</p>
+              <p className="text-muted-foreground mb-2">
+                {isTiebreaker ? `Sudden Death · Tiebreaker #${tiebreakerRound}` : `Round ${currentRound} of ${quizLength}`}
+              </p>
               <p className="text-lg font-semibold text-primary mb-4">{player1?.name}'s Turn</p>
               <div className="text-8xl font-bold text-primary animate-pulse">
                 {countdown}
               </div>
               <p className="text-sm text-muted-foreground mt-4">
-                <span className="capitalize">{selectedDifficulty}</span> • {answerTimeSeconds} seconds to answer
+                <span className="capitalize">{selectedDifficulty}</span> • Stopwatch — fastest correct wins!
               </p>
             </div>
           )}
@@ -767,18 +769,20 @@ const QuizMode: React.FC = () => {
           {step === 'question-p1' && currentQuestion && (
             <div className="space-y-6">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Round {currentRound}/{quizLength}</span>
+                <span className="text-sm text-muted-foreground">
+                  {isTiebreaker ? `Tiebreaker #${tiebreakerRound}` : `Round ${currentRound}/${quizLength}`}
+                </span>
                 <span className="text-sm font-semibold text-primary">{player1?.name}'s Turn</span>
               </div>
 
               <div className="text-center">
                 <div className="flex items-center justify-center gap-2 mb-2">
-                  <Clock className="w-5 h-5 text-warning" />
-                  <span className={`text-2xl font-bold ${timeLeft <= 5 ? 'text-destructive animate-pulse' : 'text-warning'}`}>
-                    {timeLeft}s
+                  <Timer className="w-5 h-5 text-primary" />
+                  <span className="text-3xl font-mono font-bold text-primary tabular-nums">
+                    {formatStopwatch(elapsedMs)}
                   </span>
                 </div>
-                <Progress value={(timeLeft / answerTimeSeconds) * 100} className="h-2" />
+                <Progress value={Math.min(100, (elapsedMs / MAX_STOPWATCH_MS) * 100)} className="h-2" />
               </div>
 
               <div className="p-4 bg-muted/50 rounded-xl">
@@ -833,18 +837,20 @@ const QuizMode: React.FC = () => {
           {step === 'question-p2' && currentQuestion && (
             <div className="space-y-6">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Round {currentRound}/{quizLength}</span>
+                <span className="text-sm text-muted-foreground">
+                  {isTiebreaker ? `Tiebreaker #${tiebreakerRound}` : `Round ${currentRound}/${quizLength}`}
+                </span>
                 <span className="text-sm font-semibold text-accent">{player2?.name}'s Turn</span>
               </div>
 
               <div className="text-center">
                 <div className="flex items-center justify-center gap-2 mb-2">
-                  <Clock className="w-5 h-5 text-warning" />
-                  <span className={`text-2xl font-bold ${timeLeft <= 5 ? 'text-destructive animate-pulse' : 'text-warning'}`}>
-                    {timeLeft}s
+                  <Timer className="w-5 h-5 text-accent" />
+                  <span className="text-3xl font-mono font-bold text-accent tabular-nums">
+                    {formatStopwatch(elapsedMs)}
                   </span>
                 </div>
-                <Progress value={(timeLeft / answerTimeSeconds) * 100} className="h-2" />
+                <Progress value={Math.min(100, (elapsedMs / MAX_STOPWATCH_MS) * 100)} className="h-2" />
               </div>
 
               <div className="p-4 bg-muted/50 rounded-xl">
