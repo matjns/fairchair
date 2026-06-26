@@ -348,7 +348,7 @@ const FamilyProfiles: React.FC = () => {
                           >
                             None
                           </button>
-                          {FAVORITE_SEAT_OPTIONS.map(opt => (
+                          {seatOptions.map(opt => (
                             <button
                               type="button"
                               key={opt.id}
@@ -384,7 +384,7 @@ const FamilyProfiles: React.FC = () => {
                             </span>
                             {member.favorite_seat && (
                               <span className="text-xs px-2 py-0.5 bg-accent/20 text-accent-foreground rounded-full">
-                                ★ {FAVORITE_SEAT_OPTIONS.find(o => o.id === member.favorite_seat)?.label ?? member.favorite_seat}
+                                ★ {(seatOptions.find(o => o.id === member.favorite_seat) ?? FAVORITE_SEAT_OPTIONS.find(o => o.id === member.favorite_seat))?.label ?? member.favorite_seat}
                               </span>
                             )}
                           </div>
