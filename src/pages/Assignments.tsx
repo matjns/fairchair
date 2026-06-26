@@ -20,6 +20,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useFamilyMembers, FamilyMember } from '@/hooks/useFamilyMembers';
 import { useSeatingHistory, SeatingRecord } from '@/hooks/useSeatingHistory';
 import { useToast } from '@/hooks/use-toast';
+import { getVehicleSeatConfig, VehicleSeatConfig } from '@/data/vehicleRows';
+import { User as UserIcon } from 'lucide-react';
 
 type ModeFilter = 'all' | 'chore' | 'quiz' | 'random';
 
@@ -39,6 +41,7 @@ const Assignments: React.FC = () => {
   const { history, loading: historyLoading, refetch } = useSeatingHistory();
   const [filter, setFilter] = useState<ModeFilter>('all');
   const [authChecked, setAuthChecked] = useState(false);
+  const [vehicle, setVehicle] = useState<{ make: string; model: string; year?: number } | null>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -46,6 +49,16 @@ const Assignments: React.FC = () => {
         navigate('/auth');
       } else {
         setAuthChecked(true);
+        supabase
+          .from('vehicles')
+          .select('make, model, year')
+          .eq('user_id', session.user.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+          .then(({ data }) => {
+            if (data) setVehicle(data as any);
+          });
       }
     });
   }, [navigate]);
@@ -134,6 +147,56 @@ const Assignments: React.FC = () => {
   };
 
   const loading = membersLoading || historyLoading || !authChecked;
+
+  // Build a seat layout for the user's vehicle, placing the most-recent winner of
+  // the filtered mode in the "best seat" (front passenger), then filling the
+  // remaining seats with the rest of the family by recency of their last win.
+  const seatConfig: VehicleSeatConfig = vehicle
+    ? getVehicleSeatConfig(vehicle.make, vehicle.model)
+    : { rows: 2, seatsPerRow: [2, 3] };
+
+  const rowLabel = (idx: number, total: number) => {
+    if (total === 3) return ['Front', 'Middle', 'Back'][idx];
+    return ['Front', 'Back'][idx];
+  };
+
+  const seatedMembers: (FamilyMember | null)[] = useMemo(() => {
+    const totalSeats = seatConfig.seatsPerRow.reduce((a, b) => a + b, 0);
+    const seats: (FamilyMember | null)[] = Array(totalSeats).fill(null);
+    if (familyMembers.length === 0) return seats;
+
+    // Order members: latest winner first, then others by their last-win recency
+    const lastSeenAt = new Map<string, number>();
+    filtered.forEach((rec) => {
+      if (!lastSeenAt.has(rec.family_member_id)) {
+        lastSeenAt.set(rec.family_member_id, new Date(rec.created_at).getTime());
+      }
+    });
+
+    const winnerId = filtered[0]?.family_member_id;
+    const others = familyMembers
+      .filter((m) => m.id !== winnerId)
+      .sort((a, b) => (lastSeenAt.get(b.id) ?? 0) - (lastSeenAt.get(a.id) ?? 0));
+    const ordered: FamilyMember[] = [];
+    const winner = familyMembers.find((m) => m.id === winnerId);
+    if (winner) ordered.push(winner);
+    ordered.push(...others);
+
+    // Place winner in seat index 1 (front passenger) when possible, else seat 0
+    const bestSeatIndex = seatConfig.seatsPerRow[0] > 1 ? 1 : 0;
+    if (ordered[0]) seats[bestSeatIndex] = ordered[0];
+
+    let next = 0;
+    for (let i = 1; i < ordered.length && next < totalSeats; i++) {
+      while (next < totalSeats && seats[next] !== null) next++;
+      if (next >= totalSeats) break;
+      seats[next] = ordered[i];
+      next++;
+    }
+    return seats;
+  }, [familyMembers, filtered, seatConfig]);
+
+  const winnerSeatIndex = seatConfig.seatsPerRow[0] > 1 ? 1 : 0;
 
   return (
     <div className="min-h-screen bg-background">
@@ -308,6 +371,30 @@ const Assignments: React.FC = () => {
 
             {/* Recent history */}
             <section className="lg:col-span-3 card-elevated p-6">
+              <h2 className="text-xl font-bold mb-1 flex items-center gap-2">
+                <ChairIcon className="w-5 h-5 text-primary" filled />
+                Seat Layout
+                {vehicle && (
+                  <span className="text-sm font-normal text-muted-foreground">
+                    · {vehicle.year ? `${vehicle.year} ` : ''}{vehicle.make} {vehicle.model}
+                  </span>
+                )}
+              </h2>
+              <p className="text-sm text-muted-foreground mb-4">
+                {filter === 'all'
+                  ? 'Latest winner across all modes sits in the best seat.'
+                  : `Based on your most recent ${MODE_META[filter].label} result.`}
+              </p>
+              <SeatLayout
+                seatConfig={seatConfig}
+                seatedMembers={seatedMembers}
+                winnerSeatIndex={winnerSeatIndex}
+                rowLabel={rowLabel}
+              />
+            </section>
+
+            {/* Recent history */}
+            <section className="lg:col-span-3 card-elevated p-6">
               <h2 className="text-xl font-bold mb-4">Recent Assignments</h2>
               <ul className="divide-y divide-border">
                 {filtered.slice(0, 25).map((rec) => {
@@ -358,6 +445,60 @@ const ModeBadge: React.FC<{ mode: 'chore' | 'quiz' | 'random' }> = ({ mode }) =>
       <Icon className="w-3.5 h-3.5" />
       {meta.label}
     </span>
+  );
+};
+
+const SeatLayout: React.FC<{
+  seatConfig: VehicleSeatConfig;
+  seatedMembers: (FamilyMember | null)[];
+  winnerSeatIndex: number;
+  rowLabel: (idx: number, total: number) => string;
+}> = ({ seatConfig, seatedMembers, winnerSeatIndex, rowLabel }) => {
+  let seatCounter = 0;
+  return (
+    <div className="space-y-4">
+      {seatConfig.seatsPerRow.map((seatCount, rowIdx) => {
+        const seats = [];
+        for (let s = 0; s < seatCount; s++) {
+          const idx = seatCounter++;
+          const member = seatedMembers[idx];
+          const isWinner = idx === winnerSeatIndex;
+          seats.push(
+            <div
+              key={idx}
+              className={`flex-1 min-h-[80px] rounded-xl border-2 flex flex-col items-center justify-center p-2 transition-colors ${
+                isWinner
+                  ? 'border-warning bg-warning/10 ring-2 ring-warning/40'
+                  : member
+                  ? 'border-primary/40 bg-primary/5'
+                  : 'border-dashed border-border bg-muted/30'
+              }`}
+            >
+              <ChairIcon
+                className={`w-6 h-6 mb-1 ${isWinner ? 'text-warning' : member ? 'text-primary' : 'text-muted-foreground'}`}
+                filled
+              />
+              <span className="text-sm font-semibold text-foreground text-center leading-tight">
+                {member?.name ?? 'Empty'}
+              </span>
+              {isWinner && member && (
+                <span className="text-[10px] uppercase tracking-wide font-bold text-warning mt-0.5">
+                  Winner
+                </span>
+              )}
+            </div>,
+          );
+        }
+        return (
+          <div key={rowIdx}>
+            <div className="text-xs uppercase tracking-wide font-semibold text-muted-foreground mb-2">
+              {rowLabel(rowIdx, seatConfig.seatsPerRow.length)} Row
+            </div>
+            <div className="flex gap-3">{seats}</div>
+          </div>
+        );
+      })}
+    </div>
   );
 };
 
