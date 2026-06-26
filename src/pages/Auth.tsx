@@ -16,7 +16,6 @@ const carYears = Array.from({ length: currentYear - 1989 }, (_, i) => currentYea
 
 const Auth: React.FC = () => {
   const [isLogin, setIsLogin] = useState(true);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -28,28 +27,15 @@ const Auth: React.FC = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setIsLoggedIn(!!session);
-      }
-    );
-
-    // Check for existing session
+    // If already logged in, send them home — no interstitial.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) navigate('/');
+    });
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setIsLoggedIn(!!session);
+      if (session?.user) navigate('/');
     });
-
     return () => subscription.unsubscribe();
-  }, []);
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    toast({
-      title: "Logged out",
-      description: "You have been logged out successfully.",
-    });
-  };
+  }, [navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -157,39 +143,7 @@ const Auth: React.FC = () => {
             </span>
           </div>
 
-          {isLoggedIn ? (
-            <>
-              {/* Already logged in state */}
-              <h1 className="text-2xl font-bold text-foreground text-center mb-2">
-                You're Already Logged In!
-              </h1>
-              <p className="text-muted-foreground text-center mb-8">
-                You can continue to the app or log out to switch accounts.
-              </p>
-              <div className="space-y-4">
-                <Button 
-                  type="button" 
-                  variant="hero" 
-                  size="lg" 
-                  className="w-full"
-                  onClick={() => navigate('/demo')}
-                >
-                  Continue to App
-                </Button>
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  size="lg" 
-                  className="w-full"
-                  onClick={handleLogout}
-                >
-                  Log Out
-                </Button>
-              </div>
-            </>
-          ) : (
-            <>
-              {/* Title */}
+          <>
               <h1 className="text-2xl font-bold text-foreground text-center mb-2">
                 {isLogin ? 'Welcome Back!' : 'Join the Family!'}
               </h1>
@@ -355,8 +309,7 @@ const Auth: React.FC = () => {
               </button>
             </p>
           </div>
-            </>
-          )}
+          </>
         </div>
       </div>
     </div>
