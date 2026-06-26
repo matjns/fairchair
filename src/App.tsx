@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
-import Demo from "./pages/Demo";
+import Assignments from "./pages/Assignments";
 import ChoreMode from "./pages/ChoreMode";
 import QuizMode from "./pages/QuizMode";
 import RandomMode from "./pages/RandomMode";
@@ -23,7 +23,8 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/auth" element={<Auth />} />
-          <Route path="/demo" element={<Demo />} />
+          <Route path="/assignments" element={<Assignments />} />
+          <Route path="/demo" element={<Assignments />} />
           <Route path="/chore-mode" element={<ChoreMode />} />
           <Route path="/quiz-mode" element={<QuizMode />} />
           <Route path="/random-mode" element={<RandomMode />} />
