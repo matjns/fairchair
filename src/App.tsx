@@ -12,6 +12,7 @@ import RandomMode from "./pages/RandomMode";
 import GameMode from "./pages/GameMode";
 import CustomMode from "./pages/CustomMode";
 import FamilyProfiles from "./pages/FamilyProfiles";
+import Leaderboard from "./pages/Leaderboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -33,6 +34,7 @@ const App = () => (
           <Route path="/game-mode" element={<GameMode />} />
           <Route path="/custom-mode" element={<CustomMode />} />
           <Route path="/family-profiles" element={<FamilyProfiles />} />
+          <Route path="/leaderboard" element={<Leaderboard />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
