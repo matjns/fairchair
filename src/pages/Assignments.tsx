@@ -20,7 +20,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useFamilyMembers, FamilyMember } from '@/hooks/useFamilyMembers';
 import { useSeatingHistory, SeatingRecord } from '@/hooks/useSeatingHistory';
 import { useToast } from '@/hooks/use-toast';
-import { getVehicleSeatConfig, VehicleSeatConfig } from '@/data/vehicleRows';
+import { getVehicleSeatConfig, VehicleSeatConfig, getSeatDescriptor, FAVORITE_SEAT_OPTIONS } from '@/data/vehicleRows';
 import { User as UserIcon } from 'lucide-react';
 
 type ModeFilter = 'all' | 'chore' | 'quiz' | 'random';
@@ -160,43 +160,103 @@ const Assignments: React.FC = () => {
     return ['Front', 'Back'][idx];
   };
 
-  const seatedMembers: (FamilyMember | null)[] = useMemo(() => {
-    const totalSeats = seatConfig.seatsPerRow.reduce((a, b) => a + b, 0);
-    const seats: (FamilyMember | null)[] = Array(totalSeats).fill(null);
-    if (familyMembers.length === 0) return seats;
+  // Build every seat with a stable id + label (front, middle, back × left/middle/right)
+  const seatDescriptors = useMemo(() => {
+    const totalRows = seatConfig.seatsPerRow.length;
+    const list: { id: string; rowIdx: number; colIdx: number; label: string; rowName: string }[] = [];
+    seatConfig.seatsPerRow.forEach((seats, rowIdx) => {
+      for (let colIdx = 0; colIdx < seats; colIdx++) {
+        const d = getSeatDescriptor(rowIdx, colIdx, totalRows, seats);
+        list.push({ id: d.id, rowIdx, colIdx, label: d.label, rowName: d.rowName });
+      }
+    });
+    return list;
+  }, [seatConfig]);
 
-    // Order members: latest winner first, then others by their last-win recency
+  const kids = useMemo(() => familyMembers.filter((m) => !m.is_parent), [familyMembers]);
+  const adults = useMemo(() => familyMembers.filter((m) => m.is_parent), [familyMembers]);
+
+  // Popularity = how many kids picked each seat as their favorite
+  const popularityBySeatId = useMemo(() => {
+    const map = new Map<string, number>();
+    kids.forEach((k) => {
+      if (k.favorite_seat) map.set(k.favorite_seat, (map.get(k.favorite_seat) ?? 0) + 1);
+    });
+    return map;
+  }, [kids]);
+
+  // Compute the seat assignment: adults → front; kids → non-front seats ranked by popularity, winners first.
+  const { seatAssignments, winnerSeatId } = useMemo(() => {
+    const totalSeats = seatDescriptors.length;
+    const assignments: (FamilyMember | null)[] = Array(totalSeats).fill(null);
+    if (familyMembers.length === 0) return { seatAssignments: assignments, winnerSeatId: null as string | null };
+
+    // 1) Adults fill the front row first (in order added).
+    const frontIndices = seatDescriptors
+      .map((d, i) => ({ d, i }))
+      .filter((s) => s.d.rowName === 'front')
+      .map((s) => s.i);
+    const adultQueue = [...adults];
+    for (const idx of frontIndices) {
+      if (adultQueue.length === 0) break;
+      assignments[idx] = adultQueue.shift()!;
+    }
+
+    // 2) Rank kids by wins (desc), tie-break: latest winner first.
     const lastSeenAt = new Map<string, number>();
     filtered.forEach((rec) => {
       if (!lastSeenAt.has(rec.family_member_id)) {
         lastSeenAt.set(rec.family_member_id, new Date(rec.created_at).getTime());
       }
     });
+    const rankedKids = [...kids].sort((a, b) => {
+      const wa = winsByMember.get(a.id) ?? 0;
+      const wb = winsByMember.get(b.id) ?? 0;
+      if (wb !== wa) return wb - wa;
+      return (lastSeenAt.get(b.id) ?? 0) - (lastSeenAt.get(a.id) ?? 0);
+    });
 
-    const winnerId = filtered[0]?.family_member_id;
-    const others = familyMembers
-      .filter((m) => m.id !== winnerId)
-      .sort((a, b) => (lastSeenAt.get(b.id) ?? 0) - (lastSeenAt.get(a.id) ?? 0));
-    const ordered: FamilyMember[] = [];
-    const winner = familyMembers.find((m) => m.id === winnerId);
-    if (winner) ordered.push(winner);
-    ordered.push(...others);
+    // 3) Rank non-front seats by popularity (desc); tie-break by back row before middle (kids tend to prefer back).
+    const rankedSeats = seatDescriptors
+      .map((d, i) => ({ d, i, pop: popularityBySeatId.get(d.id) ?? 0 }))
+      .filter((s) => s.d.rowName !== 'front' && assignments[s.i] === null)
+      .sort((a, b) => {
+        if (b.pop !== a.pop) return b.pop - a.pop;
+        // back beats middle as a tie-breaker
+        const rowRank = (n: string) => (n === 'back' ? 0 : n === 'middle' ? 1 : 2);
+        return rowRank(a.d.rowName) - rowRank(b.d.rowName);
+      });
 
-    // Place winner in seat index 1 (front passenger) when possible, else seat 0
-    const bestSeatIndex = seatConfig.seatsPerRow[0] > 1 ? 1 : 0;
-    if (ordered[0]) seats[bestSeatIndex] = ordered[0];
-
-    let next = 0;
-    for (let i = 1; i < ordered.length && next < totalSeats; i++) {
-      while (next < totalSeats && seats[next] !== null) next++;
-      if (next >= totalSeats) break;
-      seats[next] = ordered[i];
-      next++;
+    // 4) Assign top kids to top seats.
+    const remainingKids = [...rankedKids];
+    for (const seat of rankedSeats) {
+      if (remainingKids.length === 0) break;
+      assignments[seat.i] = remainingKids.shift()!;
     }
-    return seats;
-  }, [familyMembers, filtered, seatConfig]);
 
-  const winnerSeatIndex = seatConfig.seatsPerRow[0] > 1 ? 1 : 0;
+    // 5) Any leftover adults overflow into any remaining empty seats.
+    for (let i = 0; i < assignments.length && adultQueue.length > 0; i++) {
+      if (assignments[i] === null) assignments[i] = adultQueue.shift()!;
+    }
+
+    const topKid = rankedKids[0];
+    const winnerSeatIdx = topKid ? assignments.findIndex((m) => m?.id === topKid.id) : -1;
+    const winnerSeatId = winnerSeatIdx >= 0 ? seatDescriptors[winnerSeatIdx].id : null;
+    return { seatAssignments: assignments, winnerSeatId };
+  }, [familyMembers, adults, kids, filtered, popularityBySeatId, seatDescriptors, winsByMember]);
+
+  // Find the single most popular seat (for the "Battle Seat" highlight on the popularity panel).
+  const mostPopularSeatId = useMemo(() => {
+    let best: string | null = null;
+    let bestCount = 0;
+    popularityBySeatId.forEach((count, id) => {
+      if (count > bestCount) {
+        bestCount = count;
+        best = id;
+      }
+    });
+    return best;
+  }, [popularityBySeatId]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -387,10 +447,65 @@ const Assignments: React.FC = () => {
               </p>
               <SeatLayout
                 seatConfig={seatConfig}
-                seatedMembers={seatedMembers}
-                winnerSeatIndex={winnerSeatIndex}
+                seatDescriptors={seatDescriptors}
+                seatedMembers={seatAssignments}
+                winnerSeatId={winnerSeatId}
                 rowLabel={rowLabel}
               />
+            </section>
+
+            {/* Seat popularity (kids' favorite picks) */}
+            <section className="lg:col-span-3 card-elevated p-6">
+              <h2 className="text-xl font-bold mb-1 flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-accent" />
+                Most Popular Seats
+              </h2>
+              <p className="text-sm text-muted-foreground mb-4">
+                Based on each kid's favorite seat. Adults always ride up front, so kids battle for these.
+              </p>
+              {kids.length === 0 ? (
+                <p className="text-muted-foreground">Add some kids to see their favorite seats.</p>
+              ) : popularityBySeatId.size === 0 ? (
+                <p className="text-muted-foreground">
+                  No favorites picked yet — head to{' '}
+                  <Link to="/family-profiles" className="text-primary underline">
+                    Family Profiles
+                  </Link>{' '}
+                  to set each kid's favorite seat.
+                </p>
+              ) : (
+                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {FAVORITE_SEAT_OPTIONS.map((opt) => {
+                    const count = popularityBySeatId.get(opt.id) ?? 0;
+                    const pct = kids.length ? Math.round((count / kids.length) * 100) : 0;
+                    const isTop = opt.id === mostPopularSeatId && count > 0;
+                    return (
+                      <div
+                        key={opt.id}
+                        className={`p-3 rounded-xl border ${isTop ? 'border-warning bg-warning/10' : 'border-border bg-card'}`}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="font-semibold text-foreground text-sm">{opt.label}</span>
+                          {isTop && (
+                            <span className="text-[10px] uppercase tracking-wide font-bold text-warning">
+                              Battle Seat
+                            </span>
+                          )}
+                        </div>
+                        <div className="h-2 bg-muted rounded-full overflow-hidden">
+                          <div
+                            className={`h-full ${isTop ? 'bg-warning' : 'bg-primary'}`}
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-1">
+                          {count} {count === 1 ? 'kid wants this' : 'kids want this'}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </section>
 
             {/* Recent history */}
@@ -450,10 +565,11 @@ const ModeBadge: React.FC<{ mode: 'chore' | 'quiz' | 'random' }> = ({ mode }) =>
 
 const SeatLayout: React.FC<{
   seatConfig: VehicleSeatConfig;
+  seatDescriptors: { id: string; rowIdx: number; colIdx: number; label: string; rowName: string }[];
   seatedMembers: (FamilyMember | null)[];
-  winnerSeatIndex: number;
+  winnerSeatId: string | null;
   rowLabel: (idx: number, total: number) => string;
-}> = ({ seatConfig, seatedMembers, winnerSeatIndex, rowLabel }) => {
+}> = ({ seatConfig, seatDescriptors, seatedMembers, winnerSeatId, rowLabel }) => {
   let seatCounter = 0;
   return (
     <div className="space-y-4">
@@ -462,20 +578,24 @@ const SeatLayout: React.FC<{
         for (let s = 0; s < seatCount; s++) {
           const idx = seatCounter++;
           const member = seatedMembers[idx];
-          const isWinner = idx === winnerSeatIndex;
+          const descriptor = seatDescriptors[idx];
+          const isWinner = !!winnerSeatId && descriptor?.id === winnerSeatId;
+          const isFront = descriptor?.rowName === 'front';
           seats.push(
             <div
               key={idx}
               className={`flex-1 min-h-[80px] rounded-xl border-2 flex flex-col items-center justify-center p-2 transition-colors ${
                 isWinner
                   ? 'border-warning bg-warning/10 ring-2 ring-warning/40'
+                  : isFront && member
+                  ? 'border-success/50 bg-success/5'
                   : member
                   ? 'border-primary/40 bg-primary/5'
                   : 'border-dashed border-border bg-muted/30'
               }`}
             >
               <ChairIcon
-                className={`w-6 h-6 mb-1 ${isWinner ? 'text-warning' : member ? 'text-primary' : 'text-muted-foreground'}`}
+                className={`w-6 h-6 mb-1 ${isWinner ? 'text-warning' : isFront && member ? 'text-success' : member ? 'text-primary' : 'text-muted-foreground'}`}
                 filled
               />
               <span className="text-sm font-semibold text-foreground text-center leading-tight">
@@ -484,6 +604,11 @@ const SeatLayout: React.FC<{
               {isWinner && member && (
                 <span className="text-[10px] uppercase tracking-wide font-bold text-warning mt-0.5">
                   Winner
+                </span>
+              )}
+              {!isWinner && isFront && member && (
+                <span className="text-[10px] uppercase tracking-wide font-bold text-success mt-0.5">
+                  Adult
                 </span>
               )}
             </div>,
