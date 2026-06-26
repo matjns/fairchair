@@ -49,7 +49,7 @@ export const Modes: React.FC = () => {
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-16">
           <h2 className="text-3xl md:text-4xl font-extrabold text-foreground mb-4">
-            Three Fun Ways to Decide
+            Four Fun Ways to Decide
           </h2>
           <p className="text-lg text-muted-foreground max-w-xl mx-auto">
             Pick the mode that works best for your family
