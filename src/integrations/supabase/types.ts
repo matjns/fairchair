@@ -88,6 +88,7 @@ export type Database = {
           avatar_color: string | null
           avatar_icon: string | null
           created_at: string
+          favorite_seat: string | null
           id: string
           is_parent: boolean
           name: string
@@ -99,6 +100,7 @@ export type Database = {
           avatar_color?: string | null
           avatar_icon?: string | null
           created_at?: string
+          favorite_seat?: string | null
           id?: string
           is_parent?: boolean
           name: string
@@ -110,6 +112,7 @@ export type Database = {
           avatar_color?: string | null
           avatar_icon?: string | null
           created_at?: string
+          favorite_seat?: string | null
           id?: string
           is_parent?: boolean
           name?: string

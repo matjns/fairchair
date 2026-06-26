@@ -131,3 +131,34 @@ export function getTotalSeats(make: string, model: string): number {
   const config = getVehicleSeatConfig(make, model);
   return config.seatsPerRow.reduce((sum, seats) => sum + seats, 0);
 }
+
+// Canonical seat id + label given the seat's position in the layout.
+export function getSeatDescriptor(
+  rowIdx: number,
+  colIdx: number,
+  totalRows: number,
+  seatsInRow: number,
+): { id: string; rowName: string; colName: string; label: string } {
+  const rowName =
+    totalRows === 3
+      ? ['front', 'middle', 'back'][rowIdx]
+      : ['front', 'back'][rowIdx];
+  let colName: string;
+  if (seatsInRow === 2) colName = colIdx === 0 ? 'left' : 'right';
+  else if (seatsInRow === 3) colName = ['left', 'middle', 'right'][colIdx];
+  else colName = String(colIdx);
+  const rowLabel = rowName.charAt(0).toUpperCase() + rowName.slice(1);
+  const colLabel = colName.charAt(0).toUpperCase() + colName.slice(1);
+  return { id: `${rowName}-${colName}`, rowName, colName, label: `${rowLabel} ${colLabel}` };
+}
+
+// All non-front seat choices a kid can pick as their favorite.
+// (Front seats are reserved for adults.)
+export const FAVORITE_SEAT_OPTIONS: { id: string; label: string }[] = [
+  { id: 'middle-left', label: 'Middle Row · Left' },
+  { id: 'middle-middle', label: 'Middle Row · Middle' },
+  { id: 'middle-right', label: 'Middle Row · Right' },
+  { id: 'back-left', label: 'Back Row · Left' },
+  { id: 'back-middle', label: 'Back Row · Middle' },
+  { id: 'back-right', label: 'Back Row · Right' },
+];

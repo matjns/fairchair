@@ -12,6 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useFamilyMembers, FamilyMember } from '@/hooks/useFamilyMembers';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { FAVORITE_SEAT_OPTIONS } from '@/data/vehicleRows';
 
 const AVATAR_COLORS = [
   { name: 'primary', class: 'bg-primary', label: 'Blue' },
@@ -52,6 +53,7 @@ const FamilyProfiles: React.FC = () => {
   const [editName, setEditName] = useState('');
   const [editColor, setEditColor] = useState('');
   const [editIcon, setEditIcon] = useState('user');
+  const [editFavoriteSeat, setEditFavoriteSeat] = useState<string>('');
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -92,6 +94,7 @@ const FamilyProfiles: React.FC = () => {
     setEditName(member.name);
     setEditColor(member.avatar_color);
     setEditIcon(member.avatar_icon || 'user');
+    setEditFavoriteSeat(member.favorite_seat || '');
   };
 
   const cancelEditing = () => {
@@ -99,6 +102,7 @@ const FamilyProfiles: React.FC = () => {
     setEditName('');
     setEditColor('');
     setEditIcon('user');
+    setEditFavoriteSeat('');
   };
 
   const saveEditing = async () => {
@@ -110,7 +114,8 @@ const FamilyProfiles: React.FC = () => {
         .update({ 
           name: editName.trim(), 
           avatar_color: editColor,
-          avatar_icon: editIcon 
+          avatar_icon: editIcon,
+          favorite_seat: editFavoriteSeat || null,
         })
         .eq('id', editingId);
       
@@ -316,6 +321,28 @@ const FamilyProfiles: React.FC = () => {
                           })}
                         </div>
                       </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-2">Favorite Seat</p>
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setEditFavoriteSeat('')}
+                            className={`px-3 py-1 rounded-full text-xs font-medium border ${editFavoriteSeat === '' ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border'}`}
+                          >
+                            None
+                          </button>
+                          {FAVORITE_SEAT_OPTIONS.map(opt => (
+                            <button
+                              type="button"
+                              key={opt.id}
+                              onClick={() => setEditFavoriteSeat(opt.id)}
+                              className={`px-3 py-1 rounded-full text-xs font-medium border ${editFavoriteSeat === opt.id ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border'}`}
+                            >
+                              {opt.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
                       <div className="flex gap-2">
                         <Button size="sm" onClick={saveEditing}>
                           <Check className="w-4 h-4 mr-1" /> Save
@@ -338,6 +365,11 @@ const FamilyProfiles: React.FC = () => {
                             <span className="text-xs px-2 py-0.5 bg-primary/10 text-primary rounded-full">
                               {member.total_chore_points} pts
                             </span>
+                            {member.favorite_seat && (
+                              <span className="text-xs px-2 py-0.5 bg-accent/20 text-accent-foreground rounded-full">
+                                ★ {FAVORITE_SEAT_OPTIONS.find(o => o.id === member.favorite_seat)?.label ?? member.favorite_seat}
+                              </span>
+                            )}
                           </div>
                         </div>
                       </div>
