@@ -12,7 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useFamilyMembers, FamilyMember } from '@/hooks/useFamilyMembers';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { FAVORITE_SEAT_OPTIONS } from '@/data/vehicleRows';
+import { FAVORITE_SEAT_OPTIONS, getFavoriteSeatOptionsForVehicle } from '@/data/vehicleRows';
 
 const AVATAR_COLORS = [
   { name: 'primary', class: 'bg-primary', label: 'Blue' },
@@ -54,6 +54,7 @@ const FamilyProfiles: React.FC = () => {
   const [editColor, setEditColor] = useState('');
   const [editIcon, setEditIcon] = useState('user');
   const [editFavoriteSeat, setEditFavoriteSeat] = useState<string>('');
+  const [vehicle, setVehicle] = useState<{ make: string; model: string } | null>(null);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -61,10 +62,26 @@ const FamilyProfiles: React.FC = () => {
       setIsAuthenticated(!!session?.user);
       if (!session?.user) {
         navigate('/auth?redirect=/family-profiles');
+      } else {
+        supabase
+          .from('vehicles')
+          .select('make, model')
+          .eq('user_id', session.user.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+          .then(({ data }) => {
+            if (data) setVehicle(data as any);
+          });
       }
     };
     checkAuth();
   }, [navigate]);
+
+  const seatOptions = React.useMemo(
+    () => getFavoriteSeatOptionsForVehicle(vehicle?.make, vehicle?.model),
+    [vehicle]
+  );
 
   const handleAdd = async () => {
     if (!newName.trim()) return;
