@@ -20,7 +20,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useFamilyMembers, FamilyMember } from '@/hooks/useFamilyMembers';
 import { useSeatingHistory, SeatingRecord } from '@/hooks/useSeatingHistory';
 import { useToast } from '@/hooks/use-toast';
-import { getVehicleSeatConfig, VehicleSeatConfig, getSeatDescriptor, FAVORITE_SEAT_OPTIONS } from '@/data/vehicleRows';
+import { getVehicleSeatConfig, VehicleSeatConfig, getSeatDescriptor, FAVORITE_SEAT_OPTIONS, getFavoriteSeatOptionsForVehicle } from '@/data/vehicleRows';
 import { User as UserIcon } from 'lucide-react';
 
 type ModeFilter = 'all' | 'chore' | 'quiz' | 'random';
@@ -475,7 +475,7 @@ const Assignments: React.FC = () => {
                 </p>
               ) : (
                 <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {FAVORITE_SEAT_OPTIONS.map((opt) => {
+                  {getFavoriteSeatOptionsForVehicle(vehicle?.make, vehicle?.model).map((opt) => {
                     const count = popularityBySeatId.get(opt.id) ?? 0;
                     const pct = kids.length ? Math.round((count / kids.length) * 100) : 0;
                     const isTop = opt.id === mostPopularSeatId && count > 0;
