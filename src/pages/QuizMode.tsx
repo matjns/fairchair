@@ -31,7 +31,7 @@ interface QuestionHistory {
 type QuizStep = 'setup' | 'select-players' | 'select-difficulty' | 'select-length' | 'select-topic' | 'countdown' | 'question-p1' | 'pass-device' | 'question-p2' | 'round-result' | 'final-result';
 type Difficulty = 'easy' | 'medium' | 'hard';
 
-const TOPICS = ['Science', 'Math', 'Geography', 'History', 'Animals', 'Sports', 'Presidents'];
+const TOPICS = ['Science', 'Math', 'Geography', 'History', 'Animals', 'Sports', 'Presidents', 'Other'];
 const COUNTDOWN_SECONDS = 3;
 const DIFFICULTY_CONFIG: Record<Difficulty, { time: number; label: string; color: string }> = {
   easy: { time: 45, label: 'Easy', color: 'bg-success' },
@@ -106,6 +106,10 @@ const QuizMode: React.FC = () => {
   const [questionStartTime, setQuestionStartTime] = useState<number>(0);
   const [usedQuestionIds, setUsedQuestionIds] = useState<string[]>([]);
   const [userHistoryIds, setUserHistoryIds] = useState<string[]>([]);
+  const [player1Streak, setPlayer1Streak] = useState<number>(0);
+  const [player2Streak, setPlayer2Streak] = useState<number>(0);
+  const [player1BestStreak, setPlayer1BestStreak] = useState<number>(0);
+  const [player2BestStreak, setPlayer2BestStreak] = useState<number>(0);
   
   // Use ref for immediate tracking (state updates are async and cause race conditions)
   const usedQuestionIdsRef = useRef<Set<string>>(new Set());
@@ -305,6 +309,10 @@ const QuizMode: React.FC = () => {
     setCurrentRound(1);
     setPlayer1Score(0);
     setPlayer2Score(0);
+    setPlayer1Streak(0);
+    setPlayer2Streak(0);
+    setPlayer1BestStreak(0);
+    setPlayer2BestStreak(0);
     // Keep usedQuestionIds - don't reset! This tracks questions used in this session
     // Combined with userHistoryIds, this prevents all repeats
     setWinner(null);
@@ -399,9 +407,16 @@ const QuizMode: React.FC = () => {
     
     setPlayer1Score(newP1Score);
     setPlayer2Score(newP2Score);
-    
+
+    const newP1Streak = p1Correct ? player1Streak + 1 : 0;
+    const newP2Streak = p2Correct ? player2Streak + 1 : 0;
+    setPlayer1Streak(newP1Streak);
+    setPlayer2Streak(newP2Streak);
+    setPlayer1BestStreak(s => Math.max(s, newP1Streak));
+    setPlayer2BestStreak(s => Math.max(s, newP2Streak));
+
     setStep('round-result');
-  }, [currentQuestion, player1, player2, player1Answer, player2Answer, player1Score, player2Score]);
+  }, [currentQuestion, player1, player2, player1Answer, player2Answer, player1Score, player2Score, player1Streak, player2Streak]);
 
   const proceedToNextRound = async () => {
     if (currentRound >= quizLength) {
@@ -438,6 +453,10 @@ const QuizMode: React.FC = () => {
     setCurrentRound(1);
     setPlayer1Score(0);
     setPlayer2Score(0);
+    setPlayer1Streak(0);
+    setPlayer2Streak(0);
+    setPlayer1BestStreak(0);
+    setPlayer2BestStreak(0);
     setCurrentQuestion(null);
     setWinner(null);
     setUsedQuestionIds([]);
@@ -841,11 +860,17 @@ const QuizMode: React.FC = () => {
                   <div className="text-center">
                     <p className="text-sm text-muted-foreground">{player1?.name}</p>
                     <p className="text-2xl font-bold text-primary">{displayP1Score}</p>
+                    {player1Streak >= 2 && (
+                      <p className="text-xs font-semibold text-warning mt-1">🔥 {player1Streak} streak</p>
+                    )}
                   </div>
                   <span className="text-2xl text-muted-foreground">-</span>
                   <div className="text-center">
                     <p className="text-sm text-muted-foreground">{player2?.name}</p>
                     <p className="text-2xl font-bold text-accent">{displayP2Score}</p>
+                    {player2Streak >= 2 && (
+                      <p className="text-xs font-semibold text-warning mt-1">🔥 {player2Streak} streak</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -879,14 +904,32 @@ const QuizMode: React.FC = () => {
                   <div className="text-center">
                     <p className="text-sm text-muted-foreground">{player1?.name}</p>
                     <p className="text-3xl font-bold text-primary">{displayP1Score}</p>
+                    {player1BestStreak >= 2 && (
+                      <p className="text-xs font-semibold text-warning mt-1">Best streak: 🔥 {player1BestStreak}</p>
+                    )}
                   </div>
                   <span className="text-2xl text-muted-foreground">-</span>
                   <div className="text-center">
                     <p className="text-sm text-muted-foreground">{player2?.name}</p>
                     <p className="text-3xl font-bold text-accent">{displayP2Score}</p>
+                    {player2BestStreak >= 2 && (
+                      <p className="text-xs font-semibold text-warning mt-1">Best streak: 🔥 {player2BestStreak}</p>
+                    )}
                   </div>
                 </div>
               </div>
+
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => {
+                  setCurrentQuestion(null);
+                  setWinner(null);
+                  startQuiz();
+                }}
+              >
+                Play Again with Same Players
+              </Button>
             </div>
           )}
         </div>
