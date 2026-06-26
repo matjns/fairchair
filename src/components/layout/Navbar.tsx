@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ChairIcon } from '@/components/icons/ChairIcon';
-import { Sparkles, Menu, X, Users, LogOut, Trophy } from 'lucide-react';
+import { Sparkles, Menu, X, Users, LogOut, Trophy, Award } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
 export const Navbar: React.FC = () => {
@@ -60,6 +60,13 @@ export const Navbar: React.FC = () => {
               <Trophy className="w-4 h-4" />
               Leaderboard
             </Link>
+            <Link
+              to="/achievements"
+              className="text-muted-foreground hover:text-foreground transition-colors font-medium flex items-center gap-1"
+            >
+              <Award className="w-4 h-4" />
+              Achievements
+            </Link>
             {isLoggedIn === false && (
               <>
                 <Button variant="ghost" onClick={() => navigate('/auth')}>
@@ -106,6 +113,14 @@ export const Navbar: React.FC = () => {
               >
                 <Trophy className="w-4 h-4" />
                 Leaderboard
+              </Link>
+              <Link
+                to="/achievements"
+                className="text-muted-foreground hover:text-foreground transition-colors font-medium py-2 flex items-center gap-1"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                <Award className="w-4 h-4" />
+                Achievements
               </Link>
               {isLoggedIn === false && (
                 <>
