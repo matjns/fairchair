@@ -212,7 +212,7 @@ const MathDuel: React.FC<{ p1: FamilyMember; p2: FamilyMember; onWinner: (m: Fam
     const effective = correct ? t : t + 30000;
     if (turn === 0) {
       setTimes(s => ({ ...s, p1: effective }));
-      setTurn(1); setProblem(makeProblem()); sw.reset();
+      setTurn(1); sw.reset();
     } else {
       const result = { ...times, p2: effective };
       const p1t = result.p1 ?? Infinity;
@@ -255,7 +255,7 @@ const WordScramble: React.FC<{ p1: FamilyMember; p2: FamilyMember; onWinner: (m:
     const effective = correct ? t : t + 30000;
     if (turn === 0) {
       setTimes(s => ({ ...s, p1: effective }));
-      setTurn(1); setWord(WORDS[Math.floor(Math.random() * WORDS.length)]); sw.reset();
+      setTurn(1); sw.reset();
     } else {
       const result = { ...times, p2: effective };
       onWinner((result.p1 ?? Infinity) <= (result.p2 ?? Infinity) ? p1 : p2);
