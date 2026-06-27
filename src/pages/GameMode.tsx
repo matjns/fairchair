@@ -212,7 +212,7 @@ const MathDuel: React.FC<{ p1: FamilyMember; p2: FamilyMember; onWinner: (m: Fam
     const effective = correct ? t : t + 30000;
     if (turn === 0) {
       setTimes(s => ({ ...s, p1: effective }));
-      setTurn(1); setProblem(makeProblem()); sw.reset();
+      setTurn(1); sw.reset();
     } else {
       const result = { ...times, p2: effective };
       const p1t = result.p1 ?? Infinity;
@@ -255,7 +255,7 @@ const WordScramble: React.FC<{ p1: FamilyMember; p2: FamilyMember; onWinner: (m:
     const effective = correct ? t : t + 30000;
     if (turn === 0) {
       setTimes(s => ({ ...s, p1: effective }));
-      setTurn(1); setWord(WORDS[Math.floor(Math.random() * WORDS.length)]); sw.reset();
+      setTurn(1); sw.reset();
     } else {
       const result = { ...times, p2: effective };
       onWinner((result.p1 ?? Infinity) <= (result.p2 ?? Infinity) ? p1 : p2);
@@ -282,6 +282,8 @@ const WordScramble: React.FC<{ p1: FamilyMember; p2: FamilyMember; onWinner: (m:
 /* Memory Sequence */
 const MemorySequence: React.FC<{ p1: FamilyMember; p2: FamilyMember; onWinner: (m: FamilyMember) => void }> = ({ p1, p2, onWinner }) => {
   const [turn, setTurn] = useState<0 | 1>(0);
+  // Pre-generate a shared master sequence so both players face the same challenge
+  const master = useMemo<number[]>(() => Array.from({ length: 20 }, () => Math.floor(Math.random() * 4)), []);
   const [seq, setSeq] = useState<number[]>([]);
   const [showing, setShowing] = useState(false);
   const [active, setActive] = useState<number | null>(null);
@@ -289,7 +291,7 @@ const MemorySequence: React.FC<{ p1: FamilyMember; p2: FamilyMember; onWinner: (
   const [scores, setScores] = useState<{ p1?: number; p2?: number }>({});
   const current = turn === 0 ? p1 : p2;
 
-  const next = (cur: number[]) => [...cur, Math.floor(Math.random() * 4)];
+  const next = (cur: number[]) => master.slice(0, cur.length + 1);
 
   const playSequence = async (s: number[]) => {
     setShowing(true); setInput([]);
