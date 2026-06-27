@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Award, Trophy, Flame, Star, Brain, Shuffle, ListChecks, Crown, Sparkles } from 'lucide-react';
+import { ArrowLeft, Award, Trophy, Flame, Star, Brain, ListChecks, Crown, Sparkles } from 'lucide-react';
 import { useFamilyMembers, FamilyMember } from '@/hooks/useFamilyMembers';
 import { useSeatingHistory, SeatingRecord } from '@/hooks/useSeatingHistory';
 
@@ -18,7 +18,6 @@ const BADGES: BadgeDef[] = [
   { id: 'ten',       name: 'Seat Legend',     description: 'Win 10 seat battles total.',                icon: Crown,      check: w => w.length >= 10 },
   { id: 'chore',     name: 'Chore Champion',  description: 'Win at least 3 Chore Mode battles.',        icon: ListChecks, check: w => w.filter(r => r.mode === 'chore').length >= 3 },
   { id: 'quiz',      name: 'Brainiac',        description: 'Win at least 3 Quiz Mode battles.',         icon: Brain,      check: w => w.filter(r => r.mode === 'quiz').length >= 3 },
-  { id: 'random',    name: 'Lady Luck',       description: 'Win at least 3 Random Mode battles.',       icon: Shuffle,    check: w => w.filter(r => r.mode === 'random').length >= 3 },
   { id: 'points50',  name: 'Hard Worker',     description: 'Earn 50+ total chore points.',              icon: Star,       check: (_w, m) => m.total_chore_points >= 50 },
   { id: 'streak',    name: 'On Fire',         description: 'Win 3 seat battles in a row.',              icon: Flame,      check: () => false },
 ];
