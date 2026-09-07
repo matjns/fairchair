@@ -469,6 +469,12 @@ const QuizMode: React.FC = () => {
   }, [currentQuestion, player1, player2, player1Answer, player2Answer, player1Time, player2Time, player1Score, player2Score, player1Streak, player2Streak]);
 
   const proceedToNextRound = async () => {
+    // Both players answered incorrectly → redo the question (same round, new question).
+    if (roundRedo) {
+      setRoundRedo(false);
+      await startRound();
+      return;
+    }
     // If we're already in a sudden-death tiebreaker round, a decisive winner ends the game.
     if (isTiebreaker) {
       if (roundWinnerId && player1 && player2) {
@@ -522,6 +528,7 @@ const QuizMode: React.FC = () => {
     setPlayer2BestStreak(0);
     setIsTiebreaker(false);
     setTiebreakerRound(0);
+    setRoundRedo(false);
     setRoundWinnerId(null);
     setCurrentQuestion(null);
     setWinner(null);
@@ -892,10 +899,17 @@ const QuizMode: React.FC = () => {
                   {isTiebreaker ? `Sudden Death · Tiebreaker #${tiebreakerRound}` : `Round ${currentRound} of ${quizLength}`}
                 </p>
                 <h2 className="text-2xl font-bold text-foreground">
-                  {roundWinnerId
-                    ? `${roundWinnerId === player1?.id ? player1?.name : player2?.name} wins the round!`
-                    : 'No winner this round'}
+                  {roundRedo
+                    ? 'Both players answered incorrectly!'
+                    : roundWinnerId
+                      ? `${roundWinnerId === player1?.id ? player1?.name : player2?.name} wins the round!`
+                      : 'No winner this round'}
                 </h2>
+                {roundRedo && (
+                  <p className="text-warning font-semibold mt-2">
+                    Time for a redo — a fresh question is coming up!
+                  </p>
+                )}
               </div>
 
               <div className="p-4 bg-muted/50 rounded-xl">
@@ -955,7 +969,9 @@ const QuizMode: React.FC = () => {
                 className="w-full"
                 onClick={proceedToNextRound}
               >
-                {isTiebreaker
+                {roundRedo
+                  ? 'Redo Question'
+                  : isTiebreaker
                   ? (roundWinnerId ? 'See Final Results' : 'Another Tiebreaker!')
                   : currentRound >= quizLength
                     ? (player1Score === player2Score ? 'Sudden Death!' : 'See Final Results')
