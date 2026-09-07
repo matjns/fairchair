@@ -259,7 +259,7 @@ const Assignments: React.FC = () => {
   }, [popularityBySeatId]);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-transparent">
       <Navbar />
       <main className="max-w-6xl mx-auto px-4 pt-24 pb-16">
         <Link
