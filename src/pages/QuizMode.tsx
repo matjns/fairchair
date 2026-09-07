@@ -12,6 +12,8 @@ import { FamilyMemberCard } from '@/components/modes/FamilyMemberCard';
 import { AddFamilyMemberForm } from '@/components/modes/AddFamilyMemberForm';
 import { SeatWinnerDisplay } from '@/components/modes/SeatWinnerDisplay';
 import { Progress } from '@/components/ui/progress';
+import { toast } from '@/hooks/use-toast';
+
 
 interface QuizQuestion {
   id: string;
@@ -281,28 +283,26 @@ const QuizMode: React.FC = () => {
       }
     }
     
-    // FALLBACK 2: Try ANY topic (user exhausted this topic)
-    const { data: anyData, error: anyError } = await supabase
-      .from('quiz_questions')
-      .select('*');
-    
-    if (!anyError) {
-      const anyQuestion = await pickFreshQuestion(anyData as QuizQuestion[] | null, excludeIds, excludeTexts, freshHistory.userId);
-      if (anyQuestion) {
-        console.log('Found question (any topic):', anyQuestion.id);
-        return anyQuestion;
-      }
-    }
-    
-    console.error('No more questions available at all!');
+    // No cross-topic fallback: the chosen topic is always respected.
+    console.error('No more unused questions left in this topic!');
     return null;
   };
+
 
   const startRound = async () => {
     if (!selectedTopic) return;
     
     const question = await fetchQuestion(selectedTopic, selectedDifficulty);
-    if (!question) return;
+    if (!question) {
+      toast({
+        title: `No new ${selectedTopic} questions left`,
+        description: 'Every question in this topic has been used. Pick a different topic.',
+        variant: 'destructive',
+      });
+      setStep('select-topic');
+      return;
+    }
+
     
     setCurrentQuestion(question);
     
