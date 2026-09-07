@@ -12,6 +12,8 @@ import { FamilyMemberCard } from '@/components/modes/FamilyMemberCard';
 import { AddFamilyMemberForm } from '@/components/modes/AddFamilyMemberForm';
 import { SeatWinnerDisplay } from '@/components/modes/SeatWinnerDisplay';
 import { Progress } from '@/components/ui/progress';
+import { toast } from '@/hooks/use-toast';
+
 
 interface QuizQuestion {
   id: string;
