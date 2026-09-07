@@ -96,7 +96,7 @@ export const Navbar: React.FC = () => {
 
         {/* Mobile Menu */}
         {isMenuOpen && (
-          <div className="md:hidden py-4 border-t border-border animate-fade-in">
+          <div className="md:hidden py-4 border-t border-border/30 animate-fade-in bg-transparent">
             <div className="flex flex-col gap-4">
               <Link 
                 to="/family-profiles" 
