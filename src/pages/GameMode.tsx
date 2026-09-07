@@ -74,7 +74,7 @@ const GameMode: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-transparent">
       <header className="border-b border-border bg-card/50 sticky top-0 z-10 backdrop-blur">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2 text-muted-foreground hover:text-foreground">

@@ -95,7 +95,7 @@ const ChoreMode: React.FC = () => {
 
   if (isAuthenticated === null || membersLoading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen bg-transparent flex items-center justify-center">
         <div className="flex items-center gap-2">
           <ChairIcon className="w-10 h-10 text-primary animate-pulse" filled />
           <span className="text-xl font-bold text-foreground">Loading...</span>
@@ -106,7 +106,7 @@ const ChoreMode: React.FC = () => {
 
   if (winner) {
     return (
-      <div className="min-h-screen bg-background px-4 py-12">
+      <div className="min-h-screen bg-transparent px-4 py-12">
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute top-20 left-10 w-72 h-72 bg-primary/10 rounded-full blur-3xl" />
           <div className="absolute bottom-20 right-10 w-96 h-96 bg-warning/10 rounded-full blur-3xl" />
@@ -131,7 +131,7 @@ const ChoreMode: React.FC = () => {
   const kids = familyMembers.filter(m => !m.is_parent);
 
   return (
-    <div className="min-h-screen bg-background px-4 py-12">
+    <div className="min-h-screen bg-transparent px-4 py-12">
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-20 left-10 w-72 h-72 bg-primary/10 rounded-full blur-3xl" />
         <div className="absolute bottom-20 right-10 w-96 h-96 bg-warning/10 rounded-full blur-3xl" />
