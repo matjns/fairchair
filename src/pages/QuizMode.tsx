@@ -117,6 +117,7 @@ const QuizMode: React.FC = () => {
   const [isTiebreaker, setIsTiebreaker] = useState<boolean>(false);
   const [tiebreakerRound, setTiebreakerRound] = useState<number>(0);
   const [roundWinnerId, setRoundWinnerId] = useState<string | null>(null);
+  const [roundRedo, setRoundRedo] = useState<boolean>(false);
   const [usedQuestionIds, setUsedQuestionIds] = useState<string[]>([]);
   const [userHistoryIds, setUserHistoryIds] = useState<string[]>([]);
   const [player1Streak, setPlayer1Streak] = useState<number>(0);
@@ -426,22 +427,27 @@ const QuizMode: React.FC = () => {
 
     // Round winner rules:
     //  • If exactly one player is correct → that player wins the round.
-    //  • If both correct OR both wrong (same outcome) → faster stopwatch wins.
+    //  • If BOTH players answered INCORRECTLY → no winner, the question is REDONE.
+    //  • If both correct → faster stopwatch wins.
     //  • If both timed out → no winner this round.
     //  • If both have the SAME stopwatch time → null (triggers sudden-death tiebreaker at end).
+    const bothWrong = !p1Correct && !p2Correct && !p1Timeout && !p2Timeout;
     let roundWinner: 'p1' | 'p2' | null = null;
-    if (p1Timeout && p2Timeout) {
+    if (bothWrong) {
+      roundWinner = null;
+    } else if (p1Timeout && p2Timeout) {
       roundWinner = null;
     } else if (p1Correct && !p2Correct) {
       roundWinner = 'p1';
     } else if (p2Correct && !p1Correct) {
       roundWinner = 'p2';
     } else {
-      // Same outcome (both correct OR both wrong) → fastest wins
+      // Same outcome (both correct OR both timed out) → fastest wins
       if (p1Time < p2Time) roundWinner = 'p1';
       else if (p2Time < p1Time) roundWinner = 'p2';
       else roundWinner = null; // identical time → no point, fall through to tiebreaker logic
     }
+    setRoundRedo(bothWrong);
 
     const newP1Score = player1Score + (roundWinner === 'p1' ? 1 : 0);
     const newP2Score = player2Score + (roundWinner === 'p2' ? 1 : 0);
