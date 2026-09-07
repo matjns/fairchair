@@ -7,7 +7,7 @@ import { Footer } from '@/components/landing/Footer';
 
 const Index: React.FC = () => {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-transparent">
       <Navbar />
       <main>
         <Hero />
