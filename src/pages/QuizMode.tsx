@@ -293,7 +293,16 @@ const QuizMode: React.FC = () => {
     if (!selectedTopic) return;
     
     const question = await fetchQuestion(selectedTopic, selectedDifficulty);
-    if (!question) return;
+    if (!question) {
+      toast({
+        title: `No new ${selectedTopic} questions left`,
+        description: 'Every question in this topic has been used. Pick a different topic.',
+        variant: 'destructive',
+      });
+      setStep('select-topic');
+      return;
+    }
+
     
     setCurrentQuestion(question);
     
