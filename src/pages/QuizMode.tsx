@@ -117,6 +117,7 @@ const QuizMode: React.FC = () => {
   const [isTiebreaker, setIsTiebreaker] = useState<boolean>(false);
   const [tiebreakerRound, setTiebreakerRound] = useState<number>(0);
   const [roundWinnerId, setRoundWinnerId] = useState<string | null>(null);
+  const [roundRedo, setRoundRedo] = useState<boolean>(false);
   const [usedQuestionIds, setUsedQuestionIds] = useState<string[]>([]);
   const [userHistoryIds, setUserHistoryIds] = useState<string[]>([]);
   const [player1Streak, setPlayer1Streak] = useState<number>(0);
@@ -330,6 +331,7 @@ const QuizMode: React.FC = () => {
     setPlayer2BestStreak(0);
     setIsTiebreaker(false);
     setTiebreakerRound(0);
+    setRoundRedo(false);
     // Keep usedQuestionIds - don't reset! This tracks questions used in this session
     // Combined with userHistoryIds, this prevents all repeats
     setWinner(null);
@@ -426,22 +428,27 @@ const QuizMode: React.FC = () => {
 
     // Round winner rules:
     //  • If exactly one player is correct → that player wins the round.
-    //  • If both correct OR both wrong (same outcome) → faster stopwatch wins.
+    //  • If BOTH players answered INCORRECTLY → no winner, the question is REDONE.
+    //  • If both correct → faster stopwatch wins.
     //  • If both timed out → no winner this round.
     //  • If both have the SAME stopwatch time → null (triggers sudden-death tiebreaker at end).
+    const bothWrong = !p1Correct && !p2Correct && !p1Timeout && !p2Timeout;
     let roundWinner: 'p1' | 'p2' | null = null;
-    if (p1Timeout && p2Timeout) {
+    if (bothWrong) {
+      roundWinner = null;
+    } else if (p1Timeout && p2Timeout) {
       roundWinner = null;
     } else if (p1Correct && !p2Correct) {
       roundWinner = 'p1';
     } else if (p2Correct && !p1Correct) {
       roundWinner = 'p2';
     } else {
-      // Same outcome (both correct OR both wrong) → fastest wins
+      // Same outcome (both correct OR both timed out) → fastest wins
       if (p1Time < p2Time) roundWinner = 'p1';
       else if (p2Time < p1Time) roundWinner = 'p2';
       else roundWinner = null; // identical time → no point, fall through to tiebreaker logic
     }
+    setRoundRedo(bothWrong);
 
     const newP1Score = player1Score + (roundWinner === 'p1' ? 1 : 0);
     const newP2Score = player2Score + (roundWinner === 'p2' ? 1 : 0);
@@ -463,6 +470,12 @@ const QuizMode: React.FC = () => {
   }, [currentQuestion, player1, player2, player1Answer, player2Answer, player1Time, player2Time, player1Score, player2Score, player1Streak, player2Streak]);
 
   const proceedToNextRound = async () => {
+    // Both players answered incorrectly → redo the question (same round, new question).
+    if (roundRedo) {
+      setRoundRedo(false);
+      await startRound();
+      return;
+    }
     // If we're already in a sudden-death tiebreaker round, a decisive winner ends the game.
     if (isTiebreaker) {
       if (roundWinnerId && player1 && player2) {
@@ -516,6 +529,7 @@ const QuizMode: React.FC = () => {
     setPlayer2BestStreak(0);
     setIsTiebreaker(false);
     setTiebreakerRound(0);
+    setRoundRedo(false);
     setRoundWinnerId(null);
     setCurrentQuestion(null);
     setWinner(null);
@@ -886,10 +900,17 @@ const QuizMode: React.FC = () => {
                   {isTiebreaker ? `Sudden Death · Tiebreaker #${tiebreakerRound}` : `Round ${currentRound} of ${quizLength}`}
                 </p>
                 <h2 className="text-2xl font-bold text-foreground">
-                  {roundWinnerId
-                    ? `${roundWinnerId === player1?.id ? player1?.name : player2?.name} wins the round!`
-                    : 'No winner this round'}
+                  {roundRedo
+                    ? 'Both players answered incorrectly!'
+                    : roundWinnerId
+                      ? `${roundWinnerId === player1?.id ? player1?.name : player2?.name} wins the round!`
+                      : 'No winner this round'}
                 </h2>
+                {roundRedo && (
+                  <p className="text-warning font-semibold mt-2">
+                    Time for a redo — a fresh question is coming up!
+                  </p>
+                )}
               </div>
 
               <div className="p-4 bg-muted/50 rounded-xl">
@@ -949,7 +970,9 @@ const QuizMode: React.FC = () => {
                 className="w-full"
                 onClick={proceedToNextRound}
               >
-                {isTiebreaker
+                {roundRedo
+                  ? 'Redo Question'
+                  : isTiebreaker
                   ? (roundWinnerId ? 'See Final Results' : 'Another Tiebreaker!')
                   : currentRound >= quizLength
                     ? (player1Score === player2Score ? 'Sudden Death!' : 'See Final Results')
