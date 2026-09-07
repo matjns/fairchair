@@ -281,22 +281,11 @@ const QuizMode: React.FC = () => {
       }
     }
     
-    // FALLBACK 2: Try ANY topic (user exhausted this topic)
-    const { data: anyData, error: anyError } = await supabase
-      .from('quiz_questions')
-      .select('*');
-    
-    if (!anyError) {
-      const anyQuestion = await pickFreshQuestion(anyData as QuizQuestion[] | null, excludeIds, excludeTexts, freshHistory.userId);
-      if (anyQuestion) {
-        console.log('Found question (any topic):', anyQuestion.id);
-        return anyQuestion;
-      }
-    }
-    
-    console.error('No more questions available at all!');
+    // No cross-topic fallback: the chosen topic is always respected.
+    console.error('No more unused questions left in this topic!');
     return null;
   };
+
 
   const startRound = async () => {
     if (!selectedTopic) return;
