@@ -331,6 +331,7 @@ const QuizMode: React.FC = () => {
     setPlayer2BestStreak(0);
     setIsTiebreaker(false);
     setTiebreakerRound(0);
+    setRoundRedo(false);
     // Keep usedQuestionIds - don't reset! This tracks questions used in this session
     // Combined with userHistoryIds, this prevents all repeats
     setWinner(null);
