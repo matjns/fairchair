@@ -126,6 +126,7 @@ const QuizMode: React.FC = () => {
   const [player2, setPlayer2] = useState<FamilyMember | null>(null);
   const [selectedDifficulty, setSelectedDifficulty] = useState<Difficulty>('hard');
   const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
+  const [selectedSubtopic, setSelectedSubtopic] = useState<string>(ANY_SUBTOPIC);
   const [quizLength, setQuizLength] = useState<number>(3);
   const [currentRound, setCurrentRound] = useState<number>(1);
   const [currentQuestion, setCurrentQuestion] = useState<QuizQuestion | null>(null);
