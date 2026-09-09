@@ -11,6 +11,7 @@ import QuizMode from "./pages/QuizMode";
 import RandomMode from "./pages/RandomMode";
 import GameMode from "./pages/GameMode";
 import CustomMode from "./pages/CustomMode";
+import ReadingMode from "./pages/ReadingMode";
 import FamilyProfiles from "./pages/FamilyProfiles";
 import Leaderboard from "./pages/Leaderboard";
 import Achievements from "./pages/Achievements";
@@ -34,6 +35,7 @@ const App = () => (
           <Route path="/random-mode" element={<RandomMode />} />
           <Route path="/game-mode" element={<GameMode />} />
           <Route path="/custom-mode" element={<CustomMode />} />
+          <Route path="/reading-mode" element={<ReadingMode />} />
           <Route path="/family-profiles" element={<FamilyProfiles />} />
           <Route path="/leaderboard" element={<Leaderboard />} />
           <Route path="/achievements" element={<Achievements />} />

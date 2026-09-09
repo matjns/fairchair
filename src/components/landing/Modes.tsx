@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ListChecks, Brain, Trophy, Shuffle, ArrowRight, Gamepad2, Settings2 } from 'lucide-react';
+import { ListChecks, Brain, Trophy, Shuffle, ArrowRight, Gamepad2, Settings2, BookOpen } from 'lucide-react';
 
 const modes = [
   {
@@ -43,6 +43,14 @@ const modes = [
     features: ['Your rules', 'Any challenge', 'Total flexibility'],
     gradient: 'from-primary to-primary/70',
   },
+  {
+    id: 'reading',
+    icon: BookOpen,
+    title: 'Reading Mode',
+    description: 'Everyone reads the same educational article, then writes a book report. The most accurate report wins the seat.',
+    features: ['Up to 5 players', 'Easy to extra hard reads', 'Accuracy leaderboard'],
+    gradient: 'from-primary to-primary/70',
+  },
 ];
 
 export const Modes: React.FC = () => {
@@ -57,7 +65,7 @@ export const Modes: React.FC = () => {
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-16">
           <h2 className="text-3xl md:text-4xl font-extrabold text-foreground mb-4">
-            Five Fun Ways to Decide
+            Six Fun Ways to Decide
           </h2>
           <p className="text-lg text-muted-foreground max-w-xl mx-auto">
             Pick the mode that works best for your family
