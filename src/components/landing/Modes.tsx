@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ListChecks, Brain, Trophy, Shuffle, ArrowRight, Gamepad2, Settings2 } from 'lucide-react';
+import { ListChecks, Brain, Trophy, Shuffle, ArrowRight, Gamepad2, Settings2, BookOpen } from 'lucide-react';
 
 const modes = [
   {
@@ -41,6 +41,14 @@ const modes = [
     title: 'Custom Mode',
     description: 'Make your own rules! Set the challenge, pick the rounds, and decide the winner — fully customizable.',
     features: ['Your rules', 'Any challenge', 'Total flexibility'],
+    gradient: 'from-primary to-primary/70',
+  },
+  {
+    id: 'reading',
+    icon: BookOpen,
+    title: 'Reading Mode',
+    description: 'Everyone reads the same educational article, then writes a book report. The most accurate report wins the seat.',
+    features: ['Up to 5 players', 'Easy to extra hard reads', 'Accuracy leaderboard'],
     gradient: 'from-primary to-primary/70',
   },
 ];
