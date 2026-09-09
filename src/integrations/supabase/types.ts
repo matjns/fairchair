@@ -150,6 +150,7 @@ export type Database = {
           difficulty: string
           id: string
           question: string
+          subtopic: string | null
           topic: string
           wrong_answers: string[]
         }
@@ -159,6 +160,7 @@ export type Database = {
           difficulty?: string
           id?: string
           question: string
+          subtopic?: string | null
           topic: string
           wrong_answers: string[]
         }
@@ -168,6 +170,7 @@ export type Database = {
           difficulty?: string
           id?: string
           question?: string
+          subtopic?: string | null
           topic?: string
           wrong_answers?: string[]
         }

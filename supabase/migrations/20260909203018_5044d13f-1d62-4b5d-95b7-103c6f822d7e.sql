@@ -1,0 +1,2 @@
+ALTER TABLE public.quiz_questions ADD COLUMN IF NOT EXISTS subtopic text;
+CREATE INDEX IF NOT EXISTS quiz_questions_topic_subtopic_difficulty_idx ON public.quiz_questions (topic, subtopic, difficulty);
