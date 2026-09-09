@@ -61,7 +61,7 @@ export const gradeReport = (article: Article, report: string): ReportScore => {
   return {
     matched,
     total,
-    accuracy: total ? Math.round((matched / total) * 1000) / 10,
+    accuracy: total ? Math.round((matched / total) * 1000) / 10 : 0,
     words,
     hits,
     misses,
