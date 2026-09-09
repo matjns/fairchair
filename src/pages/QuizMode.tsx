@@ -18,6 +18,7 @@ import { toast } from '@/hooks/use-toast';
 interface QuizQuestion {
   id: string;
   topic: string;
+  subtopic?: string | null;
   question: string;
   correct_answer: string;
   wrong_answers: string[];
@@ -30,15 +31,38 @@ interface QuestionHistory {
   userId: string | null;
 }
 
-type QuizStep = 'setup' | 'select-players' | 'select-difficulty' | 'select-length' | 'select-topic' | 'countdown' | 'question-p1' | 'pass-device' | 'question-p2' | 'round-result' | 'final-result';
+type QuizStep = 'setup' | 'select-players' | 'select-difficulty' | 'select-length' | 'select-topic' | 'select-subtopic' | 'countdown' | 'question-p1' | 'pass-device' | 'question-p2' | 'round-result' | 'final-result';
 type Difficulty = 'easy' | 'medium' | 'hard';
 
 const TOPICS = ['Science', 'Math', 'Geography', 'History', 'Animals', 'Sports', 'Presidents', 'Other'];
+const ANY_SUBTOPIC = 'Any';
+
+// Categories inside each topic. 'Any' is always added as the first choice.
+const SUBTOPICS: Record<string, string[]> = {
+  Math: ['Addition', 'Subtraction', 'Multiplication', 'Division', 'Fractions', 'Percentages', 'Exponents', 'Square Roots', 'Algebra', 'Geometry'],
+  History: ['Space', 'Cars', 'Airplanes', 'Trains', 'Businesses', 'Associations', 'United States', 'France', 'England', 'Scotland', 'Ireland', 'Germany', 'China', 'Japan', 'Colombia', 'Brazil', 'World History'],
+  Sports: ['Football', 'Basketball', 'Baseball', 'Soccer', 'Golf', 'Tennis', 'Hockey', 'Motorsports', 'Olympic Sports', 'Other Sports'],
+  Science: ['Rockets & Space', 'Cars & Engines', 'Trains', 'Airplanes', 'Chemistry', 'Physics', 'Biology', 'Earth Science', 'Technology'],
+  Geography: ['World', 'Africa', 'Asia', 'Europe', 'North America', 'South America', 'Oceania', 'Oceans & Rivers', 'Poles'],
+  Animals: ['Mammals', 'Birds', 'Reptiles', 'Amphibians', 'Fish', 'Insects', 'Sea Creatures', 'Extinct Animals'],
+  Presidents: [
+    'George Washington', 'John Adams', 'Thomas Jefferson', 'James Madison', 'James Monroe', 'John Quincy Adams',
+    'Andrew Jackson', 'Martin Van Buren', 'William Henry Harrison', 'John Tyler', 'James K. Polk', 'Zachary Taylor',
+    'Millard Fillmore', 'Franklin Pierce', 'James Buchanan', 'Abraham Lincoln', 'Andrew Johnson', 'Ulysses S. Grant',
+    'Rutherford B. Hayes', 'James A. Garfield', 'Chester A. Arthur', 'Grover Cleveland', 'Benjamin Harrison',
+    'William McKinley', 'Theodore Roosevelt', 'William Howard Taft', 'Woodrow Wilson', 'Warren G. Harding',
+    'Calvin Coolidge', 'Herbert Hoover', 'Franklin D. Roosevelt', 'Harry S. Truman', 'Dwight D. Eisenhower',
+    'John F. Kennedy', 'Lyndon B. Johnson', 'Richard Nixon', 'Gerald Ford', 'Jimmy Carter', 'Ronald Reagan',
+    'George H. W. Bush', 'Bill Clinton', 'George W. Bush', 'Barack Obama', 'Donald Trump', 'Joe Biden',
+  ],
+  Other: [],
+};
+
 const COUNTDOWN_SECONDS = 3;
-const DIFFICULTY_CONFIG: Record<Difficulty, { label: string; color: string }> = {
-  easy: { label: 'Easy', color: 'bg-success' },
-  medium: { label: 'Medium', color: 'bg-warning' },
-  hard: { label: 'Hard', color: 'bg-destructive' },
+const DIFFICULTY_CONFIG: Record<Difficulty, { label: string; color: string; blurb: string }> = {
+  easy: { label: 'Easy', color: 'bg-success', blurb: 'friendly for kids' },
+  medium: { label: 'Medium', color: 'bg-warning', blurb: 'a real challenge' },
+  hard: { label: 'Hard', color: 'bg-destructive', blurb: 'brutally tough' },
 };
 // Soft cap so a player can't stall forever. Stopwatch counts up to this then auto-times out.
 const MAX_STOPWATCH_MS = 60_000;
