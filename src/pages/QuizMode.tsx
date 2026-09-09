@@ -18,6 +18,7 @@ import { toast } from '@/hooks/use-toast';
 interface QuizQuestion {
   id: string;
   topic: string;
+  subtopic?: string | null;
   question: string;
   correct_answer: string;
   wrong_answers: string[];
@@ -30,15 +31,38 @@ interface QuestionHistory {
   userId: string | null;
 }
 
-type QuizStep = 'setup' | 'select-players' | 'select-difficulty' | 'select-length' | 'select-topic' | 'countdown' | 'question-p1' | 'pass-device' | 'question-p2' | 'round-result' | 'final-result';
+type QuizStep = 'setup' | 'select-players' | 'select-difficulty' | 'select-length' | 'select-topic' | 'select-subtopic' | 'countdown' | 'question-p1' | 'pass-device' | 'question-p2' | 'round-result' | 'final-result';
 type Difficulty = 'easy' | 'medium' | 'hard';
 
 const TOPICS = ['Science', 'Math', 'Geography', 'History', 'Animals', 'Sports', 'Presidents', 'Other'];
+const ANY_SUBTOPIC = 'Any';
+
+// Categories inside each topic. 'Any' is always added as the first choice.
+const SUBTOPICS: Record<string, string[]> = {
+  Math: ['Addition', 'Subtraction', 'Multiplication', 'Division', 'Fractions', 'Percentages', 'Exponents', 'Square Roots', 'Algebra', 'Geometry'],
+  History: ['Space', 'Cars', 'Airplanes', 'Trains', 'Businesses', 'Associations', 'United States', 'France', 'England', 'Scotland', 'Ireland', 'Germany', 'China', 'Japan', 'Colombia', 'Brazil', 'World History'],
+  Sports: ['Football', 'Basketball', 'Baseball', 'Soccer', 'Golf', 'Tennis', 'Hockey', 'Motorsports', 'Olympic Sports', 'Other Sports'],
+  Science: ['Rockets & Space', 'Cars & Engines', 'Trains', 'Airplanes', 'Chemistry', 'Physics', 'Biology', 'Earth Science', 'Technology'],
+  Geography: ['World', 'Africa', 'Asia', 'Europe', 'North America', 'South America', 'Oceania', 'Oceans & Rivers', 'Poles'],
+  Animals: ['Mammals', 'Birds', 'Reptiles', 'Amphibians', 'Fish', 'Insects', 'Sea Creatures', 'Extinct Animals'],
+  Presidents: [
+    'George Washington', 'John Adams', 'Thomas Jefferson', 'James Madison', 'James Monroe', 'John Quincy Adams',
+    'Andrew Jackson', 'Martin Van Buren', 'William Henry Harrison', 'John Tyler', 'James K. Polk', 'Zachary Taylor',
+    'Millard Fillmore', 'Franklin Pierce', 'James Buchanan', 'Abraham Lincoln', 'Andrew Johnson', 'Ulysses S. Grant',
+    'Rutherford B. Hayes', 'James A. Garfield', 'Chester A. Arthur', 'Grover Cleveland', 'Benjamin Harrison',
+    'William McKinley', 'Theodore Roosevelt', 'William Howard Taft', 'Woodrow Wilson', 'Warren G. Harding',
+    'Calvin Coolidge', 'Herbert Hoover', 'Franklin D. Roosevelt', 'Harry S. Truman', 'Dwight D. Eisenhower',
+    'John F. Kennedy', 'Lyndon B. Johnson', 'Richard Nixon', 'Gerald Ford', 'Jimmy Carter', 'Ronald Reagan',
+    'George H. W. Bush', 'Bill Clinton', 'George W. Bush', 'Barack Obama', 'Donald Trump', 'Joe Biden',
+  ],
+  Other: [],
+};
+
 const COUNTDOWN_SECONDS = 3;
-const DIFFICULTY_CONFIG: Record<Difficulty, { label: string; color: string }> = {
-  easy: { label: 'Easy', color: 'bg-success' },
-  medium: { label: 'Medium', color: 'bg-warning' },
-  hard: { label: 'Hard', color: 'bg-destructive' },
+const DIFFICULTY_CONFIG: Record<Difficulty, { label: string; color: string; blurb: string }> = {
+  easy: { label: 'Easy', color: 'bg-success', blurb: 'friendly for kids' },
+  medium: { label: 'Medium', color: 'bg-warning', blurb: 'a real challenge' },
+  hard: { label: 'Hard', color: 'bg-destructive', blurb: 'brutally tough' },
 };
 // Soft cap so a player can't stall forever. Stopwatch counts up to this then auto-times out.
 const MAX_STOPWATCH_MS = 60_000;
@@ -102,6 +126,7 @@ const QuizMode: React.FC = () => {
   const [player2, setPlayer2] = useState<FamilyMember | null>(null);
   const [selectedDifficulty, setSelectedDifficulty] = useState<Difficulty>('hard');
   const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
+  const [selectedSubtopic, setSelectedSubtopic] = useState<string>(ANY_SUBTOPIC);
   const [quizLength, setQuizLength] = useState<number>(3);
   const [currentRound, setCurrentRound] = useState<number>(1);
   const [currentQuestion, setCurrentQuestion] = useState<QuizQuestion | null>(null);
@@ -238,7 +263,7 @@ const QuizMode: React.FC = () => {
     return null;
   };
 
-  const fetchQuestion = async (topic: string, difficulty: Difficulty): Promise<QuizQuestion | null> => {
+  const fetchQuestion = async (topic: string, difficulty: Difficulty, subtopic: string): Promise<QuizQuestion | null> => {
     if (!player1 || !player2) return null;
     
     // Get fresh account-wide history so a question never repeats for any profile
@@ -252,24 +277,33 @@ const QuizMode: React.FC = () => {
     const excludeIds = new Set([...sessionUsedIds, ...freshHistory.ids]);
     const excludeTexts = new Set([...sessionUsedTexts, ...freshHistory.texts]);
     
-    console.log('Excluding question IDs/texts:', excludeIds.size, excludeTexts.size);
-    
-    // FIRST: Try to get questions matching topic AND difficulty
-    const { data, error } = await supabase
-      .from('quiz_questions')
-      .select('*')
-      .eq('topic', topic)
-      .eq('difficulty', difficulty);
+    const useSubtopic = subtopic && subtopic !== ANY_SUBTOPIC;
+
+    // FIRST: exact match on topic + category + difficulty
+    let query = supabase.from('quiz_questions').select('*').eq('topic', topic).eq('difficulty', difficulty);
+    if (useSubtopic) query = query.eq('subtopic', subtopic);
+    const { data, error } = await query;
     
     if (!error) {
       const exactQuestion = await pickFreshQuestion(data as QuizQuestion[] | null, excludeIds, excludeTexts, freshHistory.userId);
-      if (exactQuestion) {
-        console.log('Found question (exact match):', exactQuestion.id);
-        return exactQuestion;
-      }
+      if (exactQuestion) return exactQuestion;
     }
     
-    // FALLBACK 1: Try any difficulty for this topic
+    // FALLBACK 1: same category, any difficulty
+    if (useSubtopic) {
+      const { data: subData, error: subError } = await supabase
+        .from('quiz_questions')
+        .select('*')
+        .eq('topic', topic)
+        .eq('subtopic', subtopic);
+
+      if (!subError) {
+        const subQuestion = await pickFreshQuestion(subData as QuizQuestion[] | null, excludeIds, excludeTexts, freshHistory.userId);
+        if (subQuestion) return subQuestion;
+      }
+    }
+
+    // FALLBACK 2: same topic, any category and difficulty
     const { data: fallbackData, error: fallbackError } = await supabase
       .from('quiz_questions')
       .select('*')
@@ -277,10 +311,7 @@ const QuizMode: React.FC = () => {
     
     if (!fallbackError) {
       const topicQuestion = await pickFreshQuestion(fallbackData as QuizQuestion[] | null, excludeIds, excludeTexts, freshHistory.userId);
-      if (topicQuestion) {
-        console.log('Found question (any difficulty):', topicQuestion.id);
-        return topicQuestion;
-      }
+      if (topicQuestion) return topicQuestion;
     }
     
     // No cross-topic fallback: the chosen topic is always respected.
@@ -292,7 +323,7 @@ const QuizMode: React.FC = () => {
   const startRound = async () => {
     if (!selectedTopic) return;
     
-    const question = await fetchQuestion(selectedTopic, selectedDifficulty);
+    const question = await fetchQuestion(selectedTopic, selectedDifficulty, selectedSubtopic);
     if (!question) {
       toast({
         title: `No new ${selectedTopic} questions left`,
