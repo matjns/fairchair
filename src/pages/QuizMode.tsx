@@ -714,7 +714,7 @@ const QuizMode: React.FC = () => {
                     onClick={() => setSelectedDifficulty(difficulty)}
                   >
                     <span className="text-lg font-bold capitalize">{difficulty}</span>
-                    <span className="text-xs opacity-70">stopwatch</span>
+                    <span className="text-xs opacity-70">{DIFFICULTY_CONFIG[difficulty].blurb}</span>
                   </Button>
                 ))}
               </div>
@@ -775,7 +775,10 @@ const QuizMode: React.FC = () => {
                     key={topic}
                     variant={selectedTopic === topic ? 'default' : 'outline'}
                     className="h-16 text-lg"
-                    onClick={() => setSelectedTopic(topic)}
+                    onClick={() => {
+                      setSelectedTopic(topic);
+                      setSelectedSubtopic(ANY_SUBTOPIC);
+                    }}
                   >
                     {topic}
                   </Button>
@@ -785,12 +788,66 @@ const QuizMode: React.FC = () => {
               <Button
                 variant="hero"
                 className="w-full"
-                onClick={startQuiz}
+                onClick={() => {
+                  if (!selectedTopic) return;
+                  if ((SUBTOPICS[selectedTopic] ?? []).length === 0) {
+                    setSelectedSubtopic(ANY_SUBTOPIC);
+                    startQuiz();
+                  } else {
+                    setStep('select-subtopic');
+                  }
+                }}
                 disabled={!selectedTopic}
               >
-                <Zap className="w-5 h-5 mr-2" />
-                Start Quiz!
+                {selectedTopic && (SUBTOPICS[selectedTopic] ?? []).length === 0 ? (
+                  <><Zap className="w-5 h-5 mr-2" />Start Quiz!</>
+                ) : (
+                  <>Next: Pick a Category<ChevronRight className="w-5 h-5 ml-2" /></>
+                )}
               </Button>
+            </div>
+          )}
+
+          {/* Select Sub-topic / Category */}
+          {step === 'select-subtopic' && selectedTopic && (
+            <div className="space-y-6">
+              <h2 className="text-lg font-semibold text-foreground text-center">
+                What kind of {selectedTopic.toLowerCase()}?
+              </h2>
+              <p className="text-muted-foreground text-center">
+                {player1?.name} vs {player2?.name} • <span className="capitalize">{selectedDifficulty}</span> • {quizLength} questions
+              </p>
+
+              <div className="grid grid-cols-2 gap-3 max-h-[22rem] overflow-y-auto pr-1">
+                <Button
+                  variant={selectedSubtopic === ANY_SUBTOPIC ? 'default' : 'outline'}
+                  className="h-14 col-span-2"
+                  onClick={() => setSelectedSubtopic(ANY_SUBTOPIC)}
+                >
+                  Any kind of {selectedTopic.toLowerCase()}
+                </Button>
+                {(SUBTOPICS[selectedTopic] ?? []).map(sub => (
+                  <Button
+                    key={sub}
+                    variant={selectedSubtopic === sub ? 'default' : 'outline'}
+                    className="h-14 text-sm whitespace-normal leading-tight"
+                    onClick={() => setSelectedSubtopic(sub)}
+                  >
+                    {sub}
+                  </Button>
+                ))}
+              </div>
+
+              <div className="flex gap-3">
+                <Button variant="outline" className="flex-1" onClick={() => setStep('select-topic')}>
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Back
+                </Button>
+                <Button variant="hero" className="flex-1" onClick={startQuiz}>
+                  <Zap className="w-5 h-5 mr-2" />
+                  Start Quiz!
+                </Button>
+              </div>
             </div>
           )}
 
