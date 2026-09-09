@@ -263,7 +263,7 @@ const QuizMode: React.FC = () => {
     return null;
   };
 
-  const fetchQuestion = async (topic: string, difficulty: Difficulty): Promise<QuizQuestion | null> => {
+  const fetchQuestion = async (topic: string, difficulty: Difficulty, subtopic: string): Promise<QuizQuestion | null> => {
     if (!player1 || !player2) return null;
     
     // Get fresh account-wide history so a question never repeats for any profile
@@ -277,24 +277,33 @@ const QuizMode: React.FC = () => {
     const excludeIds = new Set([...sessionUsedIds, ...freshHistory.ids]);
     const excludeTexts = new Set([...sessionUsedTexts, ...freshHistory.texts]);
     
-    console.log('Excluding question IDs/texts:', excludeIds.size, excludeTexts.size);
-    
-    // FIRST: Try to get questions matching topic AND difficulty
-    const { data, error } = await supabase
-      .from('quiz_questions')
-      .select('*')
-      .eq('topic', topic)
-      .eq('difficulty', difficulty);
+    const useSubtopic = subtopic && subtopic !== ANY_SUBTOPIC;
+
+    // FIRST: exact match on topic + category + difficulty
+    let query = supabase.from('quiz_questions').select('*').eq('topic', topic).eq('difficulty', difficulty);
+    if (useSubtopic) query = query.eq('subtopic', subtopic);
+    const { data, error } = await query;
     
     if (!error) {
       const exactQuestion = await pickFreshQuestion(data as QuizQuestion[] | null, excludeIds, excludeTexts, freshHistory.userId);
-      if (exactQuestion) {
-        console.log('Found question (exact match):', exactQuestion.id);
-        return exactQuestion;
-      }
+      if (exactQuestion) return exactQuestion;
     }
     
-    // FALLBACK 1: Try any difficulty for this topic
+    // FALLBACK 1: same category, any difficulty
+    if (useSubtopic) {
+      const { data: subData, error: subError } = await supabase
+        .from('quiz_questions')
+        .select('*')
+        .eq('topic', topic)
+        .eq('subtopic', subtopic);
+
+      if (!subError) {
+        const subQuestion = await pickFreshQuestion(subData as QuizQuestion[] | null, excludeIds, excludeTexts, freshHistory.userId);
+        if (subQuestion) return subQuestion;
+      }
+    }
+
+    // FALLBACK 2: same topic, any category and difficulty
     const { data: fallbackData, error: fallbackError } = await supabase
       .from('quiz_questions')
       .select('*')
@@ -302,10 +311,7 @@ const QuizMode: React.FC = () => {
     
     if (!fallbackError) {
       const topicQuestion = await pickFreshQuestion(fallbackData as QuizQuestion[] | null, excludeIds, excludeTexts, freshHistory.userId);
-      if (topicQuestion) {
-        console.log('Found question (any difficulty):', topicQuestion.id);
-        return topicQuestion;
-      }
+      if (topicQuestion) return topicQuestion;
     }
     
     // No cross-topic fallback: the chosen topic is always respected.
@@ -317,7 +323,7 @@ const QuizMode: React.FC = () => {
   const startRound = async () => {
     if (!selectedTopic) return;
     
-    const question = await fetchQuestion(selectedTopic, selectedDifficulty);
+    const question = await fetchQuestion(selectedTopic, selectedDifficulty, selectedSubtopic);
     if (!question) {
       toast({
         title: `No new ${selectedTopic} questions left`,
