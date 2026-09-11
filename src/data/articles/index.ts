@@ -2,10 +2,16 @@ import { Article, ArticleLevel } from './types';
 import { easyArticles } from './easy';
 import { hardArticles } from './hard';
 import { extraHardArticles } from './extraHard';
+import { businessArticles } from './businesses';
 
 export * from './types';
 
-export const allArticles: Article[] = [...easyArticles, ...hardArticles, ...extraHardArticles];
+export const allArticles: Article[] = [
+  ...easyArticles,
+  ...hardArticles,
+  ...extraHardArticles,
+  ...businessArticles,
+];
 
 export const articleTopics = (): string[] =>
   [...new Set(allArticles.map((a) => a.topic))];

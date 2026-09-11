@@ -28,6 +28,31 @@ const MIN_PLAYERS = 2;
 const MAX_PLAYERS = 5;
 const PLACE_LABELS = ['1st', '2nd', '3rd', '4th', '5th'];
 
+// Defined at module level so typing in the report box never remounts the page.
+const Shell: React.FC<{ children: React.ReactNode; onBack?: () => void }> = ({ children, onBack }) => (
+  <div className="min-h-screen bg-transparent">
+    <div className="max-w-3xl mx-auto px-4 py-8">
+      <div className="flex items-center justify-between mb-6">
+        {onBack ? (
+          <Button variant="ghost" onClick={onBack} className="gap-2">
+            <ArrowLeft className="w-4 h-4" /> Back
+          </Button>
+        ) : (
+          <Link to="/">
+            <Button variant="ghost" className="gap-2">
+              <ArrowLeft className="w-4 h-4" /> Home
+            </Button>
+          </Link>
+        )}
+        <div className="flex items-center gap-2 text-foreground font-bold">
+          <BookOpen className="w-5 h-5 text-primary" /> Reading Mode
+        </div>
+      </div>
+      {children}
+    </div>
+  </div>
+);
+
 const ReadingMode: React.FC = () => {
   const navigate = useNavigate();
   const { familyMembers, loading } = useFamilyMembers();
@@ -42,6 +67,7 @@ const ReadingMode: React.FC = () => {
   const [draft, setDraft] = useState('');
   const [entries, setEntries] = useState<Entry[]>([]);
   const [gradingIndex, setGradingIndex] = useState(0);
+  const [search, setSearch] = useState('');
 
   const topics = useMemo(() => articleTopics(), []);
   const subtopics = useMemo(() => (topic ? articleSubtopics(topic) : []), [topic]);
@@ -50,6 +76,12 @@ const ReadingMode: React.FC = () => {
     () => (topic ? findArticles(topic, subtopic || null, level) : []),
     [topic, subtopic, level],
   );
+  const visibleCandidates = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    if (!term) return candidates;
+    return candidates.filter((a) => a.title.toLowerCase().includes(term));
+  }, [candidates, search]);
+
 
   // Walk through the reports one at a time so players see the checking happen.
   useEffect(() => {
@@ -120,31 +152,9 @@ const ReadingMode: React.FC = () => {
     setTurn(0);
     setDraft('');
     setGradingIndex(0);
+    setSearch('');
   };
 
-  const Shell: React.FC<{ children: React.ReactNode; onBack?: () => void }> = ({ children, onBack }) => (
-    <div className="min-h-screen bg-transparent">
-      <div className="max-w-3xl mx-auto px-4 py-8">
-        <div className="flex items-center justify-between mb-6">
-          {onBack ? (
-            <Button variant="ghost" onClick={onBack} className="gap-2">
-              <ArrowLeft className="w-4 h-4" /> Back
-            </Button>
-          ) : (
-            <Link to="/">
-              <Button variant="ghost" className="gap-2">
-                <ArrowLeft className="w-4 h-4" /> Home
-              </Button>
-            </Link>
-          )}
-          <div className="flex items-center gap-2 text-foreground font-bold">
-            <BookOpen className="w-5 h-5 text-primary" /> Reading Mode
-          </div>
-        </div>
-        {children}
-      </div>
-    </div>
-  );
 
   if (loading) {
     return (
@@ -320,7 +330,7 @@ const ReadingMode: React.FC = () => {
                 <button
                   key={item}
                   disabled={!available}
-                  onClick={() => { setLevel(item); setStep('pick-article'); }}
+                  onClick={() => { setLevel(item); setSearch(''); setStep('pick-article'); }}
                   className={`w-full p-5 rounded-xl border-2 text-left ${
                     available ? 'border-border hover:border-primary/60' : 'border-border opacity-40 cursor-not-allowed'
                   }`}
@@ -350,8 +360,14 @@ const ReadingMode: React.FC = () => {
             <h2 className="text-2xl font-bold text-foreground">Everyone agree on one article</h2>
             <p className="text-muted-foreground">All {players.length} players read the same one.</p>
           </div>
-          <div className="space-y-3">
-            {candidates.map((item) => (
+          <input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder={subtopic === 'Businesses' ? 'Search for a business, like Wawa or Costco...' : 'Search articles...'}
+            className="w-full p-3 rounded-xl border-2 border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/60"
+          />
+          <div className="space-y-3 max-h-[520px] overflow-y-auto">
+            {visibleCandidates.map((item) => (
               <button
                 key={item.id}
                 onClick={() => startReading(item)}
@@ -363,7 +379,7 @@ const ReadingMode: React.FC = () => {
                 </span>
               </button>
             ))}
-            {candidates.length === 0 && (
+            {visibleCandidates.length === 0 && (
               <p className="text-center text-muted-foreground">No article matches that choice yet.</p>
             )}
           </div>
