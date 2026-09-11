@@ -352,8 +352,14 @@ const ReadingMode: React.FC = () => {
             <h2 className="text-2xl font-bold text-foreground">Everyone agree on one article</h2>
             <p className="text-muted-foreground">All {players.length} players read the same one.</p>
           </div>
-          <div className="space-y-3">
-            {candidates.map((item) => (
+          <input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder={subtopic === 'Businesses' ? 'Search for a business, like Wawa or Costco...' : 'Search articles...'}
+            className="w-full p-3 rounded-xl border-2 border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/60"
+          />
+          <div className="space-y-3 max-h-[520px] overflow-y-auto">
+            {visibleCandidates.map((item) => (
               <button
                 key={item.id}
                 onClick={() => startReading(item)}
