@@ -152,6 +152,7 @@ const ReadingMode: React.FC = () => {
     setTurn(0);
     setDraft('');
     setGradingIndex(0);
+    setSearch('');
   };
 
 
@@ -329,7 +330,7 @@ const ReadingMode: React.FC = () => {
                 <button
                   key={item}
                   disabled={!available}
-                  onClick={() => { setLevel(item); setStep('pick-article'); }}
+                  onClick={() => { setLevel(item); setSearch(''); setStep('pick-article'); }}
                   className={`w-full p-5 rounded-xl border-2 text-left ${
                     available ? 'border-border hover:border-primary/60' : 'border-border opacity-40 cursor-not-allowed'
                   }`}
