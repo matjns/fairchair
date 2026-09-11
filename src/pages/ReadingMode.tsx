@@ -76,6 +76,12 @@ const ReadingMode: React.FC = () => {
     () => (topic ? findArticles(topic, subtopic || null, level) : []),
     [topic, subtopic, level],
   );
+  const visibleCandidates = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    if (!term) return candidates;
+    return candidates.filter((a) => a.title.toLowerCase().includes(term));
+  }, [candidates, search]);
+
 
   // Walk through the reports one at a time so players see the checking happen.
   useEffect(() => {
