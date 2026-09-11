@@ -371,7 +371,7 @@ const ReadingMode: React.FC = () => {
                 </span>
               </button>
             ))}
-            {candidates.length === 0 && (
+            {visibleCandidates.length === 0 && (
               <p className="text-center text-muted-foreground">No article matches that choice yet.</p>
             )}
           </div>
