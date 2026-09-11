@@ -28,6 +28,31 @@ const MIN_PLAYERS = 2;
 const MAX_PLAYERS = 5;
 const PLACE_LABELS = ['1st', '2nd', '3rd', '4th', '5th'];
 
+// Defined at module level so typing in the report box never remounts the page.
+const Shell: React.FC<{ children: React.ReactNode; onBack?: () => void }> = ({ children, onBack }) => (
+  <div className="min-h-screen bg-transparent">
+    <div className="max-w-3xl mx-auto px-4 py-8">
+      <div className="flex items-center justify-between mb-6">
+        {onBack ? (
+          <Button variant="ghost" onClick={onBack} className="gap-2">
+            <ArrowLeft className="w-4 h-4" /> Back
+          </Button>
+        ) : (
+          <Link to="/">
+            <Button variant="ghost" className="gap-2">
+              <ArrowLeft className="w-4 h-4" /> Home
+            </Button>
+          </Link>
+        )}
+        <div className="flex items-center gap-2 text-foreground font-bold">
+          <BookOpen className="w-5 h-5 text-primary" /> Reading Mode
+        </div>
+      </div>
+      {children}
+    </div>
+  </div>
+);
+
 const ReadingMode: React.FC = () => {
   const navigate = useNavigate();
   const { familyMembers, loading } = useFamilyMembers();
