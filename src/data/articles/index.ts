@@ -3,6 +3,15 @@ import { easyArticles } from './easy';
 import { hardArticles } from './hard';
 import { extraHardArticles } from './extraHard';
 import { businessArticles } from './businesses';
+import { businessArticles2 } from './businesses2';
+import { mathArticles } from './math';
+import { scienceArticles } from './science';
+import { geographyArticles } from './geography';
+import { sportsArticles } from './sports';
+import { animalArticles } from './animals';
+import { presidentArticles } from './presidents';
+import { historyArticles } from './history';
+import { otherArticles } from './other';
 
 export * from './types';
 
@@ -11,7 +20,17 @@ export const allArticles: Article[] = [
   ...hardArticles,
   ...extraHardArticles,
   ...businessArticles,
+  ...businessArticles2,
+  ...mathArticles,
+  ...scienceArticles,
+  ...geographyArticles,
+  ...sportsArticles,
+  ...animalArticles,
+  ...presidentArticles,
+  ...historyArticles,
+  ...otherArticles,
 ];
+
 
 export const articleTopics = (): string[] =>
   [...new Set(allArticles.map((a) => a.topic))];

@@ -542,12 +542,18 @@ const ReadingMode: React.FC = () => {
             ))}
           </div>
 
-          <div className="flex gap-3">
-            <Button variant="hero" size="lg" className="flex-1" onClick={resetAll}>Play again</Button>
-            <Button variant="outline" size="lg" className="flex-1" onClick={() => navigate('/assignments')}>
-              See seat assignments
+          <div className="space-y-3">
+            <Button variant="hero" size="lg" className="w-full" onClick={() => startReading(article)}>
+              Play again with this same article
             </Button>
+            <div className="flex gap-3">
+              <Button variant="outline" size="lg" className="flex-1" onClick={resetAll}>Pick a new article</Button>
+              <Button variant="outline" size="lg" className="flex-1" onClick={() => navigate('/assignments')}>
+                See seat assignments
+              </Button>
+            </div>
           </div>
+
         </div>
       </Shell>
     );
