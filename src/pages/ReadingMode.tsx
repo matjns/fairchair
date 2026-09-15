@@ -105,14 +105,45 @@ const ReadingMode: React.FC = () => {
     });
   };
 
-  const startReading = (chosen: Article) => {
-    setArticle(chosen);
+  // Articles are written out in full by the app's backend, then cached, so the
+  // text is a real story about the subject instead of a stub.
+  const startReading = async (chosen: Article) => {
     setEntries([]);
     setTurn(0);
     setDraft('');
     setGradingIndex(0);
+    setArticle(chosen);
+    setWriting(true);
     setStep('read');
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-article', {
+        body: {
+          articleId: chosen.id,
+          title: chosen.title,
+          topic: chosen.topic,
+          subtopic: chosen.subtopic,
+          level: chosen.level,
+          seedFacts: chosen.facts.map((f) => f.keywords.join(' ')),
+        },
+      });
+      if (error) throw error;
+      if (data?.body) {
+        setArticle({
+          ...chosen,
+          body: data.body,
+          facts: Array.isArray(data.facts) && data.facts.length ? data.facts : chosen.facts,
+        });
+      }
+    } catch {
+      toast({
+        title: 'Using the short version',
+        description: 'The full article could not be loaded, so here is the short one.',
+      });
+    } finally {
+      setWriting(false);
+    }
   };
+
 
   const submitReport = () => {
     if (!article) return;
