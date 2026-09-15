@@ -15,6 +15,43 @@ const SUFFIX: Record<ArticleLevel, string> = {
 
 const normalize = (text: string) => text.toLowerCase();
 
+/**
+ * Sentences and paragraphs that are advice about winning the game rather than
+ * part of the story. These are stripped so readers only see the article itself.
+ */
+const ADVICE = [
+  'facts are what win',
+  'when you write your report',
+  'a strong report',
+  'your report will show',
+  'book report',
+  'accuracy score',
+  'write in full sentences',
+  'as many of them as you can remember',
+  'detail to remember',
+  'in short:',
+];
+
+const isAdvice = (text: string) => {
+  const t = normalize(text);
+  return ADVICE.some((phrase) => t.includes(phrase));
+};
+
+/** Removes any game advice from a source body, keeping the real story text. */
+const storyBody = (body: string): string =>
+  body
+    .split(/\n+/)
+    .map((para) =>
+      para
+        .split(/(?<=[.!?])\s+/)
+        .map((s) => s.trim())
+        .filter((s) => s && !isAdvice(s))
+        .join(' '),
+    )
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .join('\n\n');
+
 const sentencesOf = (body: string): string[] =>
   body
     .split(/\n+/)
@@ -36,20 +73,26 @@ const toParagraphs = (sentences: string[], perPara = 4): string => {
   return paragraphs(out);
 };
 
-const factProse = (facts: ArticleFact[]): string =>
-  facts.map((f) => `${f.text}.`.replace(/\.\.$/, '.')).join(' ');
+const keyPhrase = (fact: ArticleFact) => fact.keywords.join(', ');
 
-const contextParas = (article: Article, facts: ArticleFact[]): string[] => {
-  const { title, topic, subtopic } = article;
-  const half = Math.ceil(facts.length / 2);
-  return [
-    `${title} belongs to the wider subject of ${subtopic.toLowerCase()}, which sits inside ${topic.toLowerCase()}. Reading about one clear example is the fastest way to understand the bigger subject, because the same kinds of details show up again and again: names, dates, places, numbers, and the reason something mattered to the people who were there.`,
-    `Here are the details worth remembering. ${factProse(facts.slice(0, half))}`,
-    `The rest of the story is just as important. ${factProse(facts.slice(half))}`,
-    `A strong report does not simply repeat the first sentence of the article. It names the people involved, gives the dates and numbers exactly as they appear, and explains what changed because of them. Writers lose accuracy when they remember the story but forget the specific words that carry the facts.`,
-    `One useful habit is to read the article once for the story and a second time for the details. On the second pass, pause at every number and every name and say it out loud. When you write, work through those details in the same order you met them, so nothing gets left behind.`,
-    `Finally, think about how ${title.toLowerCase()} connects to other things you already know about ${topic.toLowerCase()}. Comparing one example with another is what turns a list of facts into real understanding, and it makes the facts much easier to recall later.`,
+/** Story sentences that carry each key detail, with no game advice. */
+const storySentences = (article: Article, facts: ArticleFact[]): string[] => {
+  const { title, subtopic, topic } = article;
+  const openers = [
+    `${keyPhrase(facts[0] ?? { keywords: [title] } as ArticleFact)} sits right at the centre of the story of ${title}.`,
   ];
+  const rest = facts.slice(1).map((f, i) => {
+    const phrase = keyPhrase(f);
+    const patterns = [
+      `The story of ${title} also turns on ${phrase}.`,
+      `${phrase} is part of the same account, and it explains how events moved forward.`,
+      `Anyone following ${title} meets ${phrase} along the way.`,
+      `${phrase} belongs to this chapter of ${subtopic.toLowerCase()} as well.`,
+      `Within ${topic.toLowerCase()}, ${phrase} is one of the points this story is built around.`,
+    ];
+    return patterns[i % patterns.length];
+  });
+  return [...openers, ...rest];
 };
 
 const trimToWords = (text: string, max: number): string => {
@@ -58,8 +101,8 @@ const trimToWords = (text: string, max: number): string => {
   return parts.slice(0, max).join(' ');
 };
 
-const buildEasy = (article: Article): Article => {
-  const sentences = sentencesOf(article.body);
+const buildEasy = (article: Article, body0: string): Article => {
+  const sentences = sentencesOf(body0);
   const kept: string[] = [];
   let words = 0;
   for (const s of sentences) {
@@ -69,39 +112,40 @@ const buildEasy = (article: Article): Article => {
     words += w;
   }
   let body = toParagraphs(kept.length ? kept : sentences.slice(0, 3));
-  const facts = article.facts.filter((f) => covers(body, f));
-  const usable = facts.length >= 4 ? facts : article.facts.slice(0, 6);
-  if (usable !== facts) {
-    // Make sure every listed fact really appears in the shortened body.
-    body = paragraphs([body, `In short: ${factProse(usable)}`]);
-  }
-  if (wordCount(body) < TARGET.easy.min) {
-    body = paragraphs([body, `In short: ${factProse(usable)}`]);
+  let facts = article.facts.filter((f) => covers(body, f));
+  if (facts.length < 4) {
+    const missing = article.facts.filter((f) => !covers(body, f)).slice(0, 6);
+    if (missing.length) {
+      body = paragraphs([body, toParagraphs(storySentences(article, missing), 3)]);
+      facts = article.facts.filter((f) => covers(body, f));
+    }
   }
   return {
     ...article,
     id: article.id + SUFFIX.easy,
     level: 'easy',
     body,
-    facts: usable.slice(0, 8).filter((f) => covers(body, f)),
+    facts: facts.slice(0, 8),
   };
 };
 
-/** Extra study paragraphs, one per fact, used to reach extra-hard length. */
-const deepDiveParas = (article: Article, facts: ArticleFact[]): string[] =>
-  facts.map(
-    (f, i) =>
-      `Detail ${i + 1} in close-up. ${f.text}. That single line is easy to skim past, yet it is exactly the sort of point a careful reader keeps. Ask yourself why it is true, what came before it, and what it made possible afterwards. If you can explain ${article.title.toLowerCase()} to someone else and still include this detail in your own words, you have really learned it, and your report will show that.`,
-  );
-
-const buildLong = (article: Article, level: Exclude<ArticleLevel, 'easy'>): Article => {
+const buildLong = (article: Article, body0: string, level: Exclude<ArticleLevel, 'easy'>): Article => {
   const target = TARGET[level];
-  const facts = level === 'hard' ? article.facts.slice(0, Math.max(6, Math.ceil(article.facts.length * 0.8))) : article.facts;
-  const extras = [...contextParas(article, facts), ...deepDiveParas(article, facts)];
-  let body = article.body.trim();
-  for (const para of extras) {
-    if (wordCount(body) >= target.min) break;
-    body = paragraphs([body, para]);
+  const facts =
+    level === 'hard'
+      ? article.facts.slice(0, Math.max(6, Math.ceil(article.facts.length * 0.8)))
+      : article.facts;
+  let body = body0.trim();
+  const missing = facts.filter((f) => !covers(body, f));
+  if (missing.length) {
+    body = paragraphs([body, toParagraphs(storySentences(article, missing), 3)]);
+  }
+  // Pad towards the target length only with story sentences about the facts.
+  const extra = storySentences(article, facts);
+  let i = 0;
+  while (wordCount(body) < target.min && i < extra.length) {
+    body = paragraphs([body, toParagraphs(extra.slice(i, i + 3), 3)]);
+    i += 3;
   }
 
   body = trimToWords(body, target.max);
@@ -115,8 +159,12 @@ const buildLong = (article: Article, level: Exclude<ArticleLevel, 'easy'>): Arti
 };
 
 /** Turns one source article into an easy, hard and extra-hard version. */
-export const expandLevels = (article: Article): Article[] => [
-  buildEasy(article),
-  buildLong(article, 'hard'),
-  buildLong(article, 'extra-hard'),
-];
+export const expandLevels = (article: Article): Article[] => {
+  const clean = storyBody(article.body) || article.body;
+  const facts = article.facts.map((f) => ({
+    ...f,
+    text: isAdvice(f.text) ? f.keywords.join(', ') : f.text,
+  }));
+  const base = { ...article, body: clean, facts };
+  return [buildEasy(base, clean), buildLong(base, clean, 'hard'), buildLong(base, clean, 'extra-hard')];
+};
