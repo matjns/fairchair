@@ -36,7 +36,7 @@ const specialQueries = (title: string): string[] | null => {
     "Boeing 747 first flight 1969",
     "Boeing Everett Factory 747 assembly",
     "Boeing 747 close up aircraft",
-    "Pan Am Boeing 747 January 1970 Heathrow crowds",
+    "Pan Am Boeing 747",
   ];
 };
 
@@ -106,7 +106,7 @@ Deno.serve(async (req) => {
         if (already) return already;
         const paragraphTerms = paragraph.split(/\s+/).slice(0, 20).join(" ");
         const query = featured?.[index] ?? `${title} ${paragraphTerms}`;
-        const page = await searchCommons(query);
+        const page = await searchCommons(query) ?? await searchCommons(title);
         const info = page?.imageinfo?.[0];
         if (!page || !info?.thumburl) return null;
 
