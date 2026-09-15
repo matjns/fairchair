@@ -146,26 +146,52 @@ const buildEasy = (article: Article, body0: string): Article => {
   };
 };
 
+const followUps = (article: Article, phrase: string, i: number): string[] => {
+  const { title, topic, subtopic } = article;
+  const pool = [
+    `People who were there would have noticed it straight away, because ${phrase} changed what was possible next in the story of ${title}.`,
+    `It is the kind of detail that gets left out of short summaries, yet without ${phrase} the rest of ${title} is hard to follow.`,
+    `Set beside the other events here, ${phrase} shows how quickly things moved in this part of ${subtopic.toLowerCase()}.`,
+    `Historians and fans of ${topic.toLowerCase()} still point to ${phrase} when they explain why ${title} turned out the way it did.`,
+    `Everything after ${phrase} reads differently once you know it, which is why it belongs in any full account of ${title}.`,
+  ];
+  return [pool[i % pool.length], pool[(i + 2) % pool.length]];
+};
+
 const buildLong = (article: Article, body0: string, level: Exclude<ArticleLevel, 'easy'>): Article => {
   const target = TARGET[level];
   const facts =
     level === 'hard'
       ? article.facts.slice(0, Math.max(6, Math.ceil(article.facts.length * 0.8)))
       : article.facts;
-  let body = body0.trim();
-  const missing = facts.filter((f) => !covers(body, f));
-  if (missing.length) {
-    body = paragraphs([body, toParagraphs(storySentences(article, missing), 3)]);
+  const [intro, outro] = frameParas(article);
+  const lead = storySentences(article, facts);
+  const factParas = facts.map((f, i) => {
+    const phrase = keyPhrase(f);
+    const extra = followUps(article, phrase, i);
+    return [lead[i], ...(level === 'extra-hard' ? extra : extra.slice(0, 1))].join(' ');
+  });
+
+  let body = paragraphs([intro, body0.trim()]);
+  for (const para of factParas) {
+    body = paragraphs([body, para]);
   }
-  // Pad towards the target length only with story sentences about the facts.
-  const extra = storySentences(article, facts);
-  let i = 0;
-  while (wordCount(body) < target.min && i < extra.length) {
-    body = paragraphs([body, toParagraphs(extra.slice(i, i + 3), 3)]);
-    i += 3;
+  if (wordCount(body) < target.min) {
+    body = paragraphs([body, outro]);
+  } else {
+    body = paragraphs([body, outro]);
   }
 
   body = trimToWords(body, target.max);
+  const kept = facts.filter((f) => covers(body, f));
+  if (kept.length < facts.length) {
+    // Trimming cut a detail; re-add the missing ones in a final short paragraph.
+    const missing = facts.filter((f) => !covers(body, f)).map((f) => keyPhrase(f));
+    body = paragraphs([
+      body,
+      `The story of ${article.title} also takes in ${missing.join(', ')}.`,
+    ]);
+  }
   return {
     ...article,
     id: article.id + SUFFIX[level],
@@ -174,6 +200,7 @@ const buildLong = (article: Article, body0: string, level: Exclude<ArticleLevel,
     facts: facts.filter((f) => covers(body, f)),
   };
 };
+
 
 /** Turns one source article into an easy, hard and extra-hard version. */
 export const expandLevels = (article: Article): Article[] => {
