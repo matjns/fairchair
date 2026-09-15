@@ -184,6 +184,7 @@ export type Database = {
           created_at: string
           creator: string | null
           id: string
+          image_slot: number
           license: string | null
           paragraph_index: number
           source_url: string
@@ -196,6 +197,7 @@ export type Database = {
           created_at?: string
           creator?: string | null
           id?: string
+          image_slot?: number
           license?: string | null
           paragraph_index: number
           source_url: string
@@ -208,6 +210,7 @@ export type Database = {
           created_at?: string
           creator?: string | null
           id?: string
+          image_slot?: number
           license?: string | null
           paragraph_index?: number
           source_url?: string
