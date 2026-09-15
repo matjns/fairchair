@@ -176,6 +176,42 @@ export type Database = {
         }
         Relationships: []
       }
+      reading_article_texts: {
+        Row: {
+          article_id: string
+          body: string
+          created_at: string
+          facts: Json
+          id: string
+          level: string
+          subtopic: string | null
+          title: string
+          topic: string | null
+        }
+        Insert: {
+          article_id: string
+          body: string
+          created_at?: string
+          facts?: Json
+          id?: string
+          level: string
+          subtopic?: string | null
+          title: string
+          topic?: string | null
+        }
+        Update: {
+          article_id?: string
+          body?: string
+          created_at?: string
+          facts?: Json
+          id?: string
+          level?: string
+          subtopic?: string | null
+          title?: string
+          topic?: string | null
+        }
+        Relationships: []
+      }
       seating_history: {
         Row: {
           created_at: string
