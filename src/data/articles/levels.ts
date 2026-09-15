@@ -87,6 +87,13 @@ const buildEasy = (article: Article): Article => {
   };
 };
 
+/** Extra study paragraphs, one per fact, used to reach extra-hard length. */
+const deepDiveParas = (article: Article, facts: ArticleFact[]): string[] =>
+  facts.map(
+    (f, i) =>
+      `Detail ${i + 1} in close-up. ${f.text}. That single line is easy to skim past, yet it is exactly the sort of point a careful reader keeps. Ask yourself why it is true, what came before it, and what it made possible afterwards. If you can explain ${article.title.toLowerCase()} to someone else and still include this detail in your own words, you have really learned it, and your report will show that.`,
+  );
+
 const buildLong = (article: Article, level: Exclude<ArticleLevel, 'easy'>): Article => {
   const target = TARGET[level];
   const facts = level === 'hard' ? article.facts.slice(0, Math.max(6, Math.ceil(article.facts.length * 0.8))) : article.facts;
