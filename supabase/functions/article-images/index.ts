@@ -171,13 +171,12 @@ Deno.serve(async (req) => {
     const requests = pictureRequests(title, paragraphs);
     if (stored.length < requests.length) {
       const claimedThisRequest = new Set(stored.map((image) => image.sourceUrl));
-      for (const request of requests) {
+      const fillRequest = async (request: PictureRequest): Promise<StoredImage | null> => {
         const already = stored.find((image) =>
           image.paragraphIndex === request.paragraphIndex && image.imageSlot === request.imageSlot
         );
-        if (already) continue;
+        if (already) return null;
 
-        let saved: StoredImage | null = null;
         for (const query of request.queries) {
           const pages = await searchCommons(query);
           for (const page of pages) {
@@ -230,13 +229,16 @@ Deno.serve(async (req) => {
               continue;
             }
             claimedThisRequest.add(sourceUrl);
-            saved = image;
-            break;
+            return image;
           }
-          if (saved) break;
         }
-        if (saved) stored.push(saved);
-      }
+        return null;
+      };
+
+      // Search missing paragraphs concurrently so long articles do not run out
+      // of function time before their later paragraphs receive pictures.
+      const savedImages = await Promise.all(requests.map(fillRequest));
+      stored.push(...savedImages.filter((image): image is StoredImage => image !== null));
     }
 
     stored.sort((a, b) => a.paragraphIndex - b.paragraphIndex || a.imageSlot - b.imageSlot);
