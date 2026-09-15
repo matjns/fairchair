@@ -75,25 +75,42 @@ const toParagraphs = (sentences: string[], perPara = 4): string => {
 
 const keyPhrase = (fact: ArticleFact) => fact.keywords.join(', ');
 
+const isYear = (phrase: string) => /^(1[0-9]{3}|20[0-9]{2})$/.test(phrase.trim());
+
 /** Story sentences that carry each key detail, with no game advice. */
 const storySentences = (article: Article, facts: ArticleFact[]): string[] => {
   const { title, subtopic, topic } = article;
-  const openers = [
-    `${keyPhrase(facts[0] ?? { keywords: [title] } as ArticleFact)} sits right at the centre of the story of ${title}.`,
-  ];
-  const rest = facts.slice(1).map((f, i) => {
+  return facts.map((f, i) => {
     const phrase = keyPhrase(f);
-    const patterns = [
-      `The story of ${title} also turns on ${phrase}.`,
-      `${phrase} is part of the same account, and it explains how events moved forward.`,
-      `Anyone following ${title} meets ${phrase} along the way.`,
-      `${phrase} belongs to this chapter of ${subtopic.toLowerCase()} as well.`,
-      `Within ${topic.toLowerCase()}, ${phrase} is one of the points this story is built around.`,
+    if (isYear(phrase)) {
+      const yearFrames = [
+        `By ${phrase} the story of ${title} had reached a turning point, and the events of that year shaped everything that followed.`,
+        `${phrase} is the year most tellings of ${title} pause on, because what happened then decided what came next.`,
+        `Then came ${phrase}. The people caught up in ${title} could see the change happening around them.`,
+        `In ${phrase} the picture changed again, and ${title} moved into a new stage of its story.`,
+      ];
+      return yearFrames[i % yearFrames.length];
+    }
+    const frames = [
+      `${phrase} sits near the heart of ${title}, and the story keeps coming back to it.`,
+      `The account of ${title} also runs through ${phrase}, which is where a lot of the action happens.`,
+      `Anyone following ${title} meets ${phrase} along the way, and it helps explain how the rest unfolded.`,
+      `${phrase} belongs to the same chapter of ${subtopic.toLowerCase()}, and it connects this story to the ones around it.`,
+      `Within ${topic.toLowerCase()}, ${phrase} is one of the pieces this story is built on.`,
     ];
-    return patterns[i % patterns.length];
+    return frames[i % frames.length];
   });
-  return [...openers, ...rest];
 };
+
+/** A short scene-setting opening and a closing paragraph, both about the subject. */
+const frameParas = (article: Article): string[] => {
+  const { title, subtopic, topic } = article;
+  return [
+    `${title} is one of the best-known stories in ${subtopic.toLowerCase()}, a corner of ${topic.toLowerCase()} full of names, places and moments that people still talk about today. The account below follows it from the beginning, keeping to what actually happened and to the details that made it matter.`,
+    `Put together, the moments above are what make ${title} worth reading about. Each name, place and date belongs to the same thread, and following that thread from start to finish is what turns a handful of details into a story you can retell in your own words.`,
+  ];
+};
+
 
 const trimToWords = (text: string, max: number): string => {
   const parts = text.split(/\s+/);
