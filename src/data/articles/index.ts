@@ -11,6 +11,7 @@ import { sportsArticles } from './sports';
 import { animalArticles } from './animals';
 import { presidentArticles } from './presidents';
 import { historyArticles } from './history';
+import { historyArticles2 } from './history2';
 import { otherArticles } from './other';
 import { expandLevels } from './levels';
 
@@ -29,6 +30,7 @@ const sourceArticles: Article[] = [
   ...animalArticles,
   ...presidentArticles,
   ...historyArticles,
+  ...historyArticles2,
   ...otherArticles,
 ];
 
