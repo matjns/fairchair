@@ -20,6 +20,7 @@ interface CommonsPage {
 
 interface StoredImage {
   paragraphIndex: number;
+  imageSlot: number;
   storagePath: string;
   altText: string;
   caption: string;
@@ -30,17 +31,49 @@ interface StoredImage {
 
 const stripHtml = (value = "") => value.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
 
-const specialQueries = (title: string): string[] | null => {
-  if (!title.toLowerCase().includes("boeing 747")) return null;
-  return [
-    "Boeing 747 first flight 1969",
-    "Boeing Everett Factory 747 assembly",
-    "Boeing 747 close up aircraft",
-    "Pan Am Boeing 747",
-  ];
+interface PictureRequest {
+  paragraphIndex: number;
+  imageSlot: number;
+  queries: string[];
+}
+
+const pictureRequests = (title: string, paragraphs: string[]): PictureRequest[] => {
+  const requests = paragraphs.map((paragraph, paragraphIndex) => ({
+    paragraphIndex,
+    imageSlot: 0,
+    queries: [`${title} ${paragraph.split(/\s+/).slice(0, 20).join(" ")}`, title],
+  }));
+  if (!title.toLowerCase().includes("boeing 747")) return requests;
+
+  const special: Record<number, string[]> = {
+    0: ["Boeing 747 first flight February 1969", "Boeing 747 prototype first flight"],
+    1: ["Boeing Everett Factory 747 assembly", "Boeing 747 factory production line"],
+    2: ["Boeing 747 close up aircraft", "Boeing 747 close view"],
+    3: ["Pan Am Boeing 747 January 1970 London Heathrow crowds", "Pan Am Boeing 747 first commercial flight 1970"],
+    4: ["Boeing 747 cargo loading", "Boeing 747 freighter loading cargo"],
+    5: ["Boeing 747-400 in flight", "Boeing 747-400 aircraft"],
+  };
+  for (const request of requests) {
+    if (special[request.paragraphIndex]) request.queries = special[request.paragraphIndex];
+  }
+  if (paragraphs.length > 5) {
+    requests.push({
+      paragraphIndex: 5,
+      imageSlot: 1,
+      queries: ["NASA Shuttle Carrier Aircraft carrying Space Shuttle Boeing 747", "Space Shuttle on Boeing 747 NASA"],
+    });
+  }
+  const last = requests.find((request) => request.paragraphIndex === paragraphs.length - 1 && request.imageSlot === 0);
+  if (last) {
+    last.queries = [
+      "Atlas Air final Boeing 747 January 2023 Everett takeoff",
+      "Atlas Air Boeing 747-8F final 747 delivery 2023",
+    ];
+  }
+  return requests;
 };
 
-const searchCommons = async (query: string): Promise<CommonsPage | null> => {
+const searchCommons = async (query: string): Promise<CommonsPage[]> => {
   const params = new URLSearchParams({
     action: "query",
     format: "json",
@@ -48,7 +81,7 @@ const searchCommons = async (query: string): Promise<CommonsPage | null> => {
     generator: "search",
     gsrsearch: query,
     gsrnamespace: "6",
-    gsrlimit: "8",
+    gsrlimit: "20",
     prop: "imageinfo",
     iiprop: "url|mime|extmetadata",
     iiurlwidth: "1400",
@@ -56,13 +89,13 @@ const searchCommons = async (query: string): Promise<CommonsPage | null> => {
   const response = await fetch(`https://commons.wikimedia.org/w/api.php?${params.toString()}`, {
     headers: { "User-Agent": "FairChairReadingMode/1.0 (educational article images)" },
   });
-  if (!response.ok) return null;
+  if (!response.ok) return [];
   const json = await response.json();
   const pages = Object.values(json?.query?.pages ?? {}) as CommonsPage[];
-  return pages.find((page) => {
+  return pages.filter((page) => {
     const info = page.imageinfo?.[0];
     return info?.thumburl && ["image/jpeg", "image/png", "image/webp"].includes(info.mime ?? "");
-  }) ?? null;
+  });
 };
 
 Deno.serve(async (req) => {
@@ -85,12 +118,14 @@ Deno.serve(async (req) => {
 
     const { data: cached } = await supabase
       .from("reading_article_images")
-      .select("paragraph_index, storage_path, alt_text, caption, source_url, creator, license")
+      .select("paragraph_index, image_slot, storage_path, alt_text, caption, source_url, creator, license")
       .eq("article_id", articleId)
-      .order("paragraph_index");
+      .order("paragraph_index")
+      .order("image_slot");
 
     let stored: StoredImage[] = (cached ?? []).map((row) => ({
       paragraphIndex: row.paragraph_index,
+      imageSlot: row.image_slot,
       storagePath: row.storage_path,
       altText: row.alt_text,
       caption: row.caption,
@@ -99,59 +134,78 @@ Deno.serve(async (req) => {
       license: row.license,
     }));
 
-    if (stored.length < paragraphs.length) {
-      const featured = specialQueries(title);
-      const created = await Promise.all(paragraphs.map(async (paragraph, index): Promise<StoredImage | null> => {
-        const already = stored.find((image) => image.paragraphIndex === index);
-        if (already) return already;
-        const paragraphTerms = paragraph.split(/\s+/).slice(0, 20).join(" ");
-        const query = featured?.[index] ?? `${title} ${paragraphTerms}`;
-        const page = await searchCommons(query) ?? await searchCommons(title);
-        const info = page?.imageinfo?.[0];
-        if (!page || !info?.thumburl) return null;
+    const requests = pictureRequests(title, paragraphs);
+    if (stored.length < requests.length) {
+      const claimedThisRequest = new Set(stored.map((image) => image.sourceUrl));
+      for (const request of requests) {
+        const already = stored.find((image) =>
+          image.paragraphIndex === request.paragraphIndex && image.imageSlot === request.imageSlot
+        );
+        if (already) continue;
 
-        const imageResponse = await fetch(info.thumburl);
-        if (!imageResponse.ok) return null;
-        const contentType = info.mime ?? imageResponse.headers.get("content-type") ?? "image/jpeg";
-        const extension = contentType === "image/png" ? "png" : contentType === "image/webp" ? "webp" : "jpg";
-        const safeId = articleId.replace(/[^a-zA-Z0-9_-]/g, "-");
-        const storagePath = `${safeId}/paragraph-${index}.${extension}`;
-        const bytes = await imageResponse.arrayBuffer();
-        const { error: uploadError } = await supabase.storage
-          .from("article-images")
-          .upload(storagePath, bytes, { contentType, upsert: true });
-        if (uploadError) {
-          console.error("article image upload failed", uploadError.message);
-          return null;
+        let saved: StoredImage | null = null;
+        for (const query of request.queries) {
+          const pages = await searchCommons(query);
+          for (const page of pages) {
+            const info = page.imageinfo?.[0];
+            if (!info?.thumburl) continue;
+            const sourceUrl = info.descriptionurl ?? `https://commons.wikimedia.org/wiki/${encodeURIComponent(page.title ?? "")}`;
+            if (claimedThisRequest.has(sourceUrl)) continue;
+
+            const imageResponse = await fetch(info.thumburl);
+            if (!imageResponse.ok) continue;
+            const contentType = info.mime ?? imageResponse.headers.get("content-type") ?? "image/jpeg";
+            const extension = contentType === "image/png" ? "png" : contentType === "image/webp" ? "webp" : "jpg";
+            const safeId = articleId.replace(/[^a-zA-Z0-9_-]/g, "-");
+            const storagePath = `${safeId}/paragraph-${request.paragraphIndex}-${request.imageSlot}.${extension}`;
+            const metadata = info.extmetadata ?? {};
+            const caption = stripHtml(metadata.ImageDescription?.value) || stripHtml(page.title?.replace(/^File:/, "")) || title;
+            const image: StoredImage = {
+              paragraphIndex: request.paragraphIndex,
+              imageSlot: request.imageSlot,
+              storagePath,
+              altText: `${caption} — picture for ${title}`,
+              caption,
+              sourceUrl,
+              creator: stripHtml(metadata.Artist?.value) || null,
+              license: stripHtml(metadata.LicenseShortName?.value) || null,
+            };
+            const { error: insertError } = await supabase.from("reading_article_images").insert({
+              article_id: articleId,
+              paragraph_index: image.paragraphIndex,
+              image_slot: image.imageSlot,
+              storage_path: image.storagePath,
+              alt_text: image.altText,
+              caption: image.caption,
+              source_url: image.sourceUrl,
+              creator: image.creator,
+              license: image.license,
+            });
+            if (insertError) continue;
+
+            const bytes = await imageResponse.arrayBuffer();
+            const { error: uploadError } = await supabase.storage
+              .from("article-images")
+              .upload(storagePath, bytes, { contentType, upsert: true });
+            if (uploadError) {
+              await supabase.from("reading_article_images")
+                .delete()
+                .eq("article_id", articleId)
+                .eq("paragraph_index", image.paragraphIndex)
+                .eq("image_slot", image.imageSlot);
+              continue;
+            }
+            claimedThisRequest.add(sourceUrl);
+            saved = image;
+            break;
+          }
+          if (saved) break;
         }
-
-        const metadata = info.extmetadata ?? {};
-        const caption = stripHtml(metadata.ImageDescription?.value) || stripHtml(page.title?.replace(/^File:/, "")) || title;
-        const sourceUrl = info.descriptionurl ?? `https://commons.wikimedia.org/wiki/${encodeURIComponent(page.title ?? "")}`;
-        const image: StoredImage = {
-          paragraphIndex: index,
-          storagePath,
-          altText: `${caption} — picture for ${title}`,
-          caption,
-          sourceUrl,
-          creator: stripHtml(metadata.Artist?.value) || null,
-          license: stripHtml(metadata.LicenseShortName?.value) || null,
-        };
-        await supabase.from("reading_article_images").upsert({
-          article_id: articleId,
-          paragraph_index: index,
-          storage_path: image.storagePath,
-          alt_text: image.altText,
-          caption: image.caption,
-          source_url: image.sourceUrl,
-          creator: image.creator,
-          license: image.license,
-        }, { onConflict: "article_id,paragraph_index" });
-        return image;
-      }));
-      stored = created.filter((image): image is StoredImage => image !== null);
+        if (saved) stored.push(saved);
+      }
     }
 
+    stored.sort((a, b) => a.paragraphIndex - b.paragraphIndex || a.imageSlot - b.imageSlot);
     const images = await Promise.all(stored.map(async (image) => {
       const { data } = await supabase.storage.from("article-images").createSignedUrl(image.storagePath, 60 * 60 * 6);
       return data?.signedUrl ? { ...image, url: data.signedUrl } : null;
