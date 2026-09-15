@@ -8,7 +8,9 @@ import {
   ChevronRight, CheckCircle2, Medal, ListChecks, Loader2,
 } from 'lucide-react';
 import { useFamilyMembers, FamilyMember } from '@/hooks/useFamilyMembers';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+
 import {
   Article, ArticleLevel, LEVEL_INFO, allArticles, articleTopics, articleSubtopics,
   articleLevels, findArticles, gradeReport, ReportScore, wordCount,
