@@ -90,12 +90,13 @@ const buildEasy = (article: Article): Article => {
 const buildLong = (article: Article, level: Exclude<ArticleLevel, 'easy'>): Article => {
   const target = TARGET[level];
   const facts = level === 'hard' ? article.facts.slice(0, Math.max(6, Math.ceil(article.facts.length * 0.8))) : article.facts;
-  const extras = contextParas(article, facts);
+  const extras = [...contextParas(article, facts), ...deepDiveParas(article, facts)];
   let body = article.body.trim();
   for (const para of extras) {
     if (wordCount(body) >= target.min) break;
     body = paragraphs([body, para]);
   }
+
   body = trimToWords(body, target.max);
   return {
     ...article,
