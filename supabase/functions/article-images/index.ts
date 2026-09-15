@@ -62,6 +62,9 @@ const generalQueries = (title: string, paragraph: string) => {
     .replace(/\s+(?:became|changed|works?|grew|began)\b.*$/i, "")
     .trim() || title;
   return [...new Set([
+    ...keywords.slice(0, 6).map((keyword) => `${subject} ${keyword}`),
+    ...properNames.slice(0, 4).map((name) => `${subject} ${name}`),
+    subject,
     `${title} ${keywords.slice(0, 8).join(" ")}`,
     `${subject} ${keywords.slice(0, 5).join(" ")}`,
     `${title} ${properNames.slice(0, 3).join(" ")}`,
@@ -70,8 +73,6 @@ const generalQueries = (title: string, paragraph: string) => {
     keywords.slice(0, 10).join(" "),
     `${title} ${keywords.slice(0, 4).join(" ")}`,
     ...properNames.slice(0, 4).map((name) => `${title} ${name}`),
-    ...keywords.slice(0, 6).map((keyword) => `${subject} ${keyword}`),
-    subject,
     title,
   ].map((query) => query.replace(/\s+/g, " ").trim()).filter(Boolean))];
 };
