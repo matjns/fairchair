@@ -221,6 +221,11 @@ Deno.serve(async (req) => {
               license: image.license,
             });
             if (insertError) {
+              console.error("article image metadata insert failed", {
+                paragraphIndex: request.paragraphIndex,
+                sourceUrl,
+                message: insertError.message,
+              });
               claimedThisRequest.delete(sourceUrl);
               continue;
             }
