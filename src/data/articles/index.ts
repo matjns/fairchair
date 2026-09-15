@@ -12,10 +12,11 @@ import { animalArticles } from './animals';
 import { presidentArticles } from './presidents';
 import { historyArticles } from './history';
 import { otherArticles } from './other';
+import { expandLevels } from './levels';
 
 export * from './types';
 
-export const allArticles: Article[] = [
+const sourceArticles: Article[] = [
   ...easyArticles,
   ...hardArticles,
   ...extraHardArticles,
@@ -30,6 +31,10 @@ export const allArticles: Article[] = [
   ...historyArticles,
   ...otherArticles,
 ];
+
+/** Every article is offered at easy, hard and extra-hard length. */
+export const allArticles: Article[] = sourceArticles.flatMap(expandLevels);
+
 
 
 export const articleTopics = (): string[] =>
