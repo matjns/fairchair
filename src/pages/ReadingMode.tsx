@@ -431,7 +431,7 @@ const ReadingMode: React.FC = () => {
             <p className="text-sm text-muted-foreground">{article.topic} &middot; {article.subtopic} &middot; {LEVEL_INFO[article.level].label}</p>
             <h1 className="text-3xl font-extrabold text-foreground">{article.title}</h1>
             <p className="text-sm text-muted-foreground mt-1">
-              {writing ? 'Getting the article ready...' : `${wordCount(article.body)} words · about ${LEVEL_INFO[article.level].time} to read`}
+              {writing ? 'Loading...' : `${wordCount(article.body)} words · about ${LEVEL_INFO[article.level].time} to read`}
             </p>
           </div>
           {writing ? (
