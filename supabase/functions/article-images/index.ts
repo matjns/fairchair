@@ -47,7 +47,10 @@ const pictureRequests = (title: string, paragraphs: string[]): PictureRequest[] 
 
   const special: Record<number, string[]> = {
     0: ["Boeing 747 first flight February 1969", "Boeing 747 prototype first flight"],
-    1: ["Boeing Everett Factory 747 assembly", "Boeing 747 factory production line"],
+    1: [
+      "SAS Boeing 747 Combi Magnus Viking Boeing manufacturing plant Everett 1977",
+      "Boeing 747 assembly line Everett factory",
+    ],
     2: ["Boeing 747 close up aircraft", "Boeing 747 close view"],
     3: ["Pan Am Boeing 747 January 1970 London Heathrow crowds", "Pan Am Boeing 747 first commercial flight 1970"],
     4: ["Boeing 747 cargo loading", "Boeing 747 freighter loading cargo"],
@@ -64,10 +67,10 @@ const pictureRequests = (title: string, paragraphs: string[]): PictureRequest[] 
     });
   }
   const last = requests.find((request) => request.paragraphIndex === paragraphs.length - 1 && request.imageSlot === 0);
-  if (last) {
+  if (last && paragraphs.length >= 7) {
     last.queries = [
-      "Atlas Air final Boeing 747 January 2023 Everett takeoff",
-      "Atlas Air Boeing 747-8F final 747 delivery 2023",
+      "N863GT Boeing 747 Atlas Air",
+      "Atlas Air Boeing 747-8F",
     ];
   }
   return requests;
