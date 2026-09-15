@@ -70,6 +70,8 @@ const ReadingMode: React.FC = () => {
   const [entries, setEntries] = useState<Entry[]>([]);
   const [gradingIndex, setGradingIndex] = useState(0);
   const [search, setSearch] = useState('');
+  const [writing, setWriting] = useState(false);
+
 
   const topics = useMemo(() => articleTopics(), []);
   const subtopics = useMemo(() => (topic ? articleSubtopics(topic) : []), [topic]);
