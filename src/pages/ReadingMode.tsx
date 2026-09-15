@@ -437,7 +437,7 @@ const ReadingMode: React.FC = () => {
           {writing ? (
             <div className="flex flex-col items-center gap-3 py-12 text-muted-foreground">
               <Loader2 className="w-8 h-8 animate-spin text-primary" />
-              <p>Writing the article about {article.title}...</p>
+              <p>Loading...</p>
             </div>
           ) : (
             <div className="space-y-4 text-foreground leading-relaxed">
