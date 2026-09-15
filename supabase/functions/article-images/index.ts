@@ -56,14 +56,22 @@ const paragraphKeywords = (paragraph: string) => {
 const generalQueries = (title: string, paragraph: string) => {
   const keywords = paragraphKeywords(paragraph);
   const properNames = paragraph.match(/\b(?:[A-Z][\p{L}'-]+(?:\s+[A-Z][\p{L}'-]+){0,3})\b/gu) ?? [];
+  const subject = title
+    .replace(/^(?:the\s+)?(?:story|history|science|geography)\s+of\s+/i, "")
+    .replace(/^how\s+/i, "")
+    .replace(/\s+(?:became|changed|works?|grew|began)\b.*$/i, "")
+    .trim() || title;
   return [...new Set([
     `${title} ${keywords.slice(0, 8).join(" ")}`,
+    `${subject} ${keywords.slice(0, 5).join(" ")}`,
     `${title} ${properNames.slice(0, 3).join(" ")}`,
+    `${subject} ${properNames.slice(0, 2).join(" ")}`,
     `${properNames.slice(0, 4).join(" ")} ${keywords.slice(0, 6).join(" ")}`,
     keywords.slice(0, 10).join(" "),
     `${title} ${keywords.slice(0, 4).join(" ")}`,
     ...properNames.slice(0, 4).map((name) => `${title} ${name}`),
-    ...keywords.slice(0, 6).map((keyword) => `${title} ${keyword}`),
+    ...keywords.slice(0, 6).map((keyword) => `${subject} ${keyword}`),
+    subject,
     title,
   ].map((query) => query.replace(/\s+/g, " ").trim()).filter(Boolean))];
 };
