@@ -184,9 +184,15 @@ Deno.serve(async (req) => {
             if (!info?.thumburl) continue;
             const sourceUrl = info.descriptionurl ?? `https://commons.wikimedia.org/wiki/${encodeURIComponent(page.title ?? "")}`;
             if (claimedThisRequest.has(sourceUrl)) continue;
+            // Reserve the source before the next await. Concurrent paragraph
+            // searches can otherwise all choose the same first result.
+            claimedThisRequest.add(sourceUrl);
 
             const imageResponse = await fetch(info.thumburl);
-            if (!imageResponse.ok) continue;
+            if (!imageResponse.ok) {
+              claimedThisRequest.delete(sourceUrl);
+              continue;
+            }
             const contentType = info.mime ?? imageResponse.headers.get("content-type") ?? "image/jpeg";
             const extension = contentType === "image/png" ? "png" : contentType === "image/webp" ? "webp" : "jpg";
             const safeId = articleId.replace(/[^a-zA-Z0-9_-]/g, "-");
@@ -214,7 +220,10 @@ Deno.serve(async (req) => {
               creator: image.creator,
               license: image.license,
             });
-            if (insertError) continue;
+            if (insertError) {
+              claimedThisRequest.delete(sourceUrl);
+              continue;
+            }
 
             const bytes = await imageResponse.arrayBuffer();
             const { error: uploadError } = await supabase.storage
@@ -226,9 +235,9 @@ Deno.serve(async (req) => {
                 .eq("article_id", articleId)
                 .eq("paragraph_index", image.paragraphIndex)
                 .eq("image_slot", image.imageSlot);
+              claimedThisRequest.delete(sourceUrl);
               continue;
             }
-            claimedThisRequest.add(sourceUrl);
             return image;
           }
         }
