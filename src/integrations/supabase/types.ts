@@ -176,6 +176,45 @@ export type Database = {
         }
         Relationships: []
       }
+      reading_article_images: {
+        Row: {
+          alt_text: string
+          article_id: string
+          caption: string
+          created_at: string
+          creator: string | null
+          id: string
+          license: string | null
+          paragraph_index: number
+          source_url: string
+          storage_path: string
+        }
+        Insert: {
+          alt_text: string
+          article_id: string
+          caption: string
+          created_at?: string
+          creator?: string | null
+          id?: string
+          license?: string | null
+          paragraph_index: number
+          source_url: string
+          storage_path: string
+        }
+        Update: {
+          alt_text?: string
+          article_id?: string
+          caption?: string
+          created_at?: string
+          creator?: string | null
+          id?: string
+          license?: string | null
+          paragraph_index?: number
+          source_url?: string
+          storage_path?: string
+        }
+        Relationships: []
+      }
       reading_article_texts: {
         Row: {
           article_id: string
