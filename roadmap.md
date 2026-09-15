@@ -12,3 +12,4 @@
 - [x] Businesses: +199 more, including Disney, NFL, PGA, LPGA, SpaceX, X, Starlink
 - [x] Replay the same article after a game
 - [x] Article picking by specific title in every topic (search box on all topics)
+- [x] Relevant sourced picture after every Reading Mode paragraph, including a custom Boeing 747 sequence

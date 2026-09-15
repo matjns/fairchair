@@ -26,6 +26,16 @@ interface Entry {
   score: ReportScore;
 }
 
+interface ArticleImage {
+  paragraphIndex: number;
+  url: string;
+  altText: string;
+  caption: string;
+  sourceUrl: string;
+  creator: string | null;
+  license: string | null;
+}
+
 const MIN_PLAYERS = 2;
 const MAX_PLAYERS = 5;
 const PLACE_LABELS = ['1st', '2nd', '3rd', '4th', '5th'];
@@ -71,6 +81,7 @@ const ReadingMode: React.FC = () => {
   const [gradingIndex, setGradingIndex] = useState(0);
   const [search, setSearch] = useState('');
   const [writing, setWriting] = useState(false);
+  const [articleImages, setArticleImages] = useState<ArticleImage[]>([]);
 
 
   const topics = useMemo(() => articleTopics(), []);
@@ -117,6 +128,7 @@ const ReadingMode: React.FC = () => {
     setDraft('');
     setGradingIndex(0);
     setArticle(chosen);
+    setArticleImages([]);
     setWriting(true);
     setStep('read');
     try {
@@ -131,12 +143,19 @@ const ReadingMode: React.FC = () => {
         },
       });
       if (error) throw error;
-      if (data?.body) {
-        setArticle({
+      const loadedArticle: Article = data?.body ? {
           ...chosen,
           body: data.body,
           facts: Array.isArray(data.facts) && data.facts.length ? data.facts : chosen.facts,
-        });
+        } : chosen;
+      setArticle(loadedArticle);
+
+      const paragraphs = loadedArticle.body.split(/\n\s*\n/).map((paragraph) => paragraph.trim()).filter(Boolean);
+      const { data: imageData, error: imageError } = await supabase.functions.invoke('article-images', {
+        body: { articleId: loadedArticle.id, title: loadedArticle.title, paragraphs },
+      });
+      if (!imageError && Array.isArray(imageData?.images)) {
+        setArticleImages(imageData.images);
       }
     } catch {
       toast({
@@ -440,10 +459,35 @@ const ReadingMode: React.FC = () => {
               <p>Loading...</p>
             </div>
           ) : (
-            <div className="space-y-4 text-foreground leading-relaxed">
-              {article.body.split('\n\n').map((paragraph, index) => (
-                <p key={index}>{paragraph}</p>
-              ))}
+            <div className="space-y-7 text-foreground leading-relaxed">
+              {article.body.split(/\n\s*\n/).map((paragraph, index) => {
+                const picture = articleImages.find((image) => image.paragraphIndex === index);
+                return (
+                  <section key={index} className="space-y-4">
+                    <p>{paragraph}</p>
+                    {picture && (
+                      <figure className="overflow-hidden rounded-lg border border-border bg-card">
+                        <img
+                          src={picture.url}
+                          alt={picture.altText}
+                          loading={index === 0 ? 'eager' : 'lazy'}
+                          className="aspect-[16/9] w-full object-cover"
+                        />
+                        <figcaption className="px-4 py-3 text-xs text-muted-foreground">
+                          <span>{picture.caption}</span>
+                          {(picture.creator || picture.license) && (
+                            <span> · {[picture.creator, picture.license].filter(Boolean).join(' · ')}</span>
+                          )}
+                          <span> · </span>
+                          <a href={picture.sourceUrl} target="_blank" rel="noreferrer" className="text-primary underline underline-offset-2">
+                            Source
+                          </a>
+                        </figcaption>
+                      </figure>
+                    )}
+                  </section>
+                );
+              })}
             </div>
           )}
           <div className="flex items-center gap-3 p-4 rounded-xl bg-primary/10 text-sm text-foreground">
