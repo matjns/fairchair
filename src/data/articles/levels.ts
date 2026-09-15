@@ -137,6 +137,18 @@ const buildEasy = (article: Article, body0: string): Article => {
       facts = article.facts.filter((f) => covers(body, f));
     }
   }
+  if (wordCount(body) < TARGET.easy.min) {
+    const [intro] = frameParas(article);
+    body = paragraphs([intro, body]);
+    const lead = storySentences(article, article.facts);
+    let i = 0;
+    while (wordCount(body) < TARGET.easy.min && i < lead.length) {
+      body = paragraphs([body, lead.slice(i, i + 2).join(' ')]);
+      i += 2;
+    }
+    body = trimToWords(body, TARGET.easy.max);
+    facts = article.facts.filter((f) => covers(body, f));
+  }
   return {
     ...article,
     id: article.id + SUFFIX.easy,
