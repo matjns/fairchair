@@ -28,6 +28,7 @@ interface Entry {
 
 interface ArticleImage {
   paragraphIndex: number;
+  imageSlot: number;
   url: string;
   altText: string;
   caption: string;
@@ -461,30 +462,32 @@ const ReadingMode: React.FC = () => {
           ) : (
             <div className="space-y-7 text-foreground leading-relaxed">
               {article.body.split(/\n\s*\n/).map((paragraph, index) => {
-                const picture = articleImages.find((image) => image.paragraphIndex === index);
+                const pictures = articleImages
+                  .filter((image) => image.paragraphIndex === index)
+                  .sort((a, b) => a.imageSlot - b.imageSlot);
                 return (
                   <section key={index} className="space-y-4">
                     <p>{paragraph}</p>
-                    {picture && (
-                      <figure className="overflow-hidden rounded-lg border border-border bg-card">
-                        <img
-                          src={picture.url}
-                          alt={picture.altText}
-                          loading={index === 0 ? 'eager' : 'lazy'}
-                          className="aspect-[16/9] w-full object-cover"
-                        />
-                        <figcaption className="px-4 py-3 text-xs text-muted-foreground">
-                          <span>{picture.caption}</span>
-                          {(picture.creator || picture.license) && (
-                            <span> · {[picture.creator, picture.license].filter(Boolean).join(' · ')}</span>
-                          )}
-                          <span> · </span>
-                          <a href={picture.sourceUrl} target="_blank" rel="noreferrer" className="text-primary underline underline-offset-2">
-                            Source
-                          </a>
-                        </figcaption>
-                      </figure>
-                    )}
+                    {pictures.map((picture) => (
+                      <figure key={`${picture.paragraphIndex}-${picture.imageSlot}`} className="overflow-hidden rounded-lg border border-border bg-card">
+                          <img
+                            src={picture.url}
+                            alt={picture.altText}
+                            loading={index === 0 ? 'eager' : 'lazy'}
+                            className="aspect-[16/9] w-full object-cover"
+                          />
+                          <figcaption className="px-4 py-3 text-xs text-muted-foreground">
+                            <span>{picture.caption}</span>
+                            {(picture.creator || picture.license) && (
+                              <span> · {[picture.creator, picture.license].filter(Boolean).join(' · ')}</span>
+                            )}
+                            <span> · </span>
+                            <a href={picture.sourceUrl} target="_blank" rel="noreferrer" className="text-primary underline underline-offset-2">
+                              Source
+                            </a>
+                          </figcaption>
+                        </figure>
+                    ))}
                   </section>
                 );
               })}
