@@ -431,23 +431,31 @@ const ReadingMode: React.FC = () => {
             <p className="text-sm text-muted-foreground">{article.topic} &middot; {article.subtopic} &middot; {LEVEL_INFO[article.level].label}</p>
             <h1 className="text-3xl font-extrabold text-foreground">{article.title}</h1>
             <p className="text-sm text-muted-foreground mt-1">
-              {wordCount(article.body)} words &middot; about {LEVEL_INFO[article.level].time} to read
+              {writing ? 'Getting the article ready...' : `${wordCount(article.body)} words · about ${LEVEL_INFO[article.level].time} to read`}
             </p>
           </div>
-          <div className="space-y-4 text-foreground leading-relaxed">
-            {article.body.split('\n\n').map((paragraph, index) => (
-              <p key={index}>{paragraph}</p>
-            ))}
-          </div>
+          {writing ? (
+            <div className="flex flex-col items-center gap-3 py-12 text-muted-foreground">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+              <p>Writing the article about {article.title}...</p>
+            </div>
+          ) : (
+            <div className="space-y-4 text-foreground leading-relaxed">
+              {article.body.split('\n\n').map((paragraph, index) => (
+                <p key={index}>{paragraph}</p>
+              ))}
+            </div>
+          )}
           <div className="flex items-center gap-3 p-4 rounded-xl bg-primary/10 text-sm text-foreground">
             <EyeOff className="w-5 h-5 text-primary shrink-0" />
             Once everyone has finished reading, tap below. The article disappears while you write.
           </div>
-          <Button variant="hero" size="lg" className="w-full" onClick={() => setStep('write')}>
+          <Button variant="hero" size="lg" className="w-full" disabled={writing} onClick={() => setStep('write')}>
             Everyone has read it &mdash; start book reports
           </Button>
         </div>
       </Shell>
+
     );
   }
 
