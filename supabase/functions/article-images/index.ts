@@ -37,11 +37,42 @@ interface PictureRequest {
   queries: string[];
 }
 
+const SEARCH_STOP_WORDS = new Set([
+  "about", "after", "also", "among", "because", "before", "being", "between", "could", "during",
+  "each", "from", "have", "into", "more", "most", "other", "over", "such", "than", "that", "their",
+  "there", "these", "they", "this", "through", "under", "very", "were", "when", "where", "which", "while",
+  "with", "would", "years", "first", "later", "many", "much", "only", "some", "then", "used", "using",
+]);
+
+const paragraphKeywords = (paragraph: string) => {
+  const words = paragraph
+    .replace(/[^\p{L}\p{N}'-]+/gu, " ")
+    .split(/\s+/)
+    .map((word) => word.trim())
+    .filter((word) => word.length > 3 && !SEARCH_STOP_WORDS.has(word.toLowerCase()));
+  return [...new Set(words)].slice(0, 14);
+};
+
+const generalQueries = (title: string, paragraph: string) => {
+  const keywords = paragraphKeywords(paragraph);
+  const properNames = paragraph.match(/\b(?:[A-Z][\p{L}'-]+(?:\s+[A-Z][\p{L}'-]+){0,3})\b/gu) ?? [];
+  return [...new Set([
+    `${title} ${keywords.slice(0, 8).join(" ")}`,
+    `${title} ${properNames.slice(0, 3).join(" ")}`,
+    `${properNames.slice(0, 4).join(" ")} ${keywords.slice(0, 6).join(" ")}`,
+    keywords.slice(0, 10).join(" "),
+    `${title} ${keywords.slice(0, 4).join(" ")}`,
+    ...properNames.slice(0, 4).map((name) => `${title} ${name}`),
+    ...keywords.slice(0, 6).map((keyword) => `${title} ${keyword}`),
+    title,
+  ].map((query) => query.replace(/\s+/g, " ").trim()).filter(Boolean))];
+};
+
 const pictureRequests = (title: string, paragraphs: string[]): PictureRequest[] => {
   const requests = paragraphs.map((paragraph, paragraphIndex) => ({
     paragraphIndex,
     imageSlot: 0,
-    queries: [`${title} ${paragraph.split(/\s+/).slice(0, 20).join(" ")}`, title],
+    queries: generalQueries(title, paragraph),
   }));
   if (!title.toLowerCase().includes("boeing 747")) return requests;
 
@@ -84,7 +115,7 @@ const searchCommons = async (query: string): Promise<CommonsPage[]> => {
     generator: "search",
     gsrsearch: query,
     gsrnamespace: "6",
-    gsrlimit: "20",
+    gsrlimit: "50",
     prop: "imageinfo",
     iiprop: "url|mime|extmetadata",
     iiurlwidth: "1400",

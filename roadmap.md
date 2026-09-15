@@ -13,3 +13,4 @@
 - [x] Replay the same article after a game
 - [x] Article picking by specific title in every topic (search box on all topics)
 - [x] Unique sourced picture after every Reading Mode paragraph, with the full Boeing 747 sequence and two pictures after paragraph six
+- [x] Broaden paragraph-specific picture matching so every article paragraph receives a relevant unique picture
