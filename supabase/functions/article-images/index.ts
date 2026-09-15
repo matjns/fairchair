@@ -37,11 +37,51 @@ interface PictureRequest {
   queries: string[];
 }
 
+const SEARCH_STOP_WORDS = new Set([
+  "about", "after", "also", "among", "because", "before", "being", "between", "could", "during",
+  "each", "from", "have", "into", "more", "most", "other", "over", "such", "than", "that", "their",
+  "there", "these", "they", "this", "through", "under", "very", "were", "when", "where", "which", "while",
+  "with", "would", "years", "first", "later", "many", "much", "only", "some", "then", "used", "using",
+]);
+
+const paragraphKeywords = (paragraph: string) => {
+  const words = paragraph
+    .replace(/[^\p{L}\p{N}'-]+/gu, " ")
+    .split(/\s+/)
+    .map((word) => word.trim())
+    .filter((word) => word.length > 3 && !SEARCH_STOP_WORDS.has(word.toLowerCase()));
+  return [...new Set(words)].slice(0, 14);
+};
+
+const generalQueries = (title: string, paragraph: string) => {
+  const keywords = paragraphKeywords(paragraph);
+  const properNames = paragraph.match(/\b(?:[A-Z][\p{L}'-]+(?:\s+[A-Z][\p{L}'-]+){0,3})\b/gu) ?? [];
+  const subject = title
+    .replace(/^(?:the\s+)?(?:story|history|science|geography)\s+of\s+/i, "")
+    .replace(/^how\s+/i, "")
+    .replace(/\s+(?:became|changed|works?|grew|began)\b.*$/i, "")
+    .trim() || title;
+  return [...new Set([
+    ...keywords.slice(0, 6).map((keyword) => `${subject} ${keyword}`),
+    ...properNames.slice(0, 4).map((name) => `${subject} ${name}`),
+    subject,
+    `${title} ${keywords.slice(0, 8).join(" ")}`,
+    `${subject} ${keywords.slice(0, 5).join(" ")}`,
+    `${title} ${properNames.slice(0, 3).join(" ")}`,
+    `${subject} ${properNames.slice(0, 2).join(" ")}`,
+    `${properNames.slice(0, 4).join(" ")} ${keywords.slice(0, 6).join(" ")}`,
+    keywords.slice(0, 10).join(" "),
+    `${title} ${keywords.slice(0, 4).join(" ")}`,
+    ...properNames.slice(0, 4).map((name) => `${title} ${name}`),
+    title,
+  ].map((query) => query.replace(/\s+/g, " ").trim()).filter(Boolean))];
+};
+
 const pictureRequests = (title: string, paragraphs: string[]): PictureRequest[] => {
   const requests = paragraphs.map((paragraph, paragraphIndex) => ({
     paragraphIndex,
     imageSlot: 0,
-    queries: [`${title} ${paragraph.split(/\s+/).slice(0, 20).join(" ")}`, title],
+    queries: generalQueries(title, paragraph),
   }));
   if (!title.toLowerCase().includes("boeing 747")) return requests;
 
@@ -84,7 +124,7 @@ const searchCommons = async (query: string): Promise<CommonsPage[]> => {
     generator: "search",
     gsrsearch: query,
     gsrnamespace: "6",
-    gsrlimit: "20",
+    gsrlimit: "50",
     prop: "imageinfo",
     iiprop: "url|mime|extmetadata",
     iiurlwidth: "1400",
@@ -140,13 +180,12 @@ Deno.serve(async (req) => {
     const requests = pictureRequests(title, paragraphs);
     if (stored.length < requests.length) {
       const claimedThisRequest = new Set(stored.map((image) => image.sourceUrl));
-      for (const request of requests) {
+      const fillRequest = async (request: PictureRequest): Promise<StoredImage | null> => {
         const already = stored.find((image) =>
           image.paragraphIndex === request.paragraphIndex && image.imageSlot === request.imageSlot
         );
-        if (already) continue;
+        if (already) return null;
 
-        let saved: StoredImage | null = null;
         for (const query of request.queries) {
           const pages = await searchCommons(query);
           for (const page of pages) {
@@ -154,9 +193,15 @@ Deno.serve(async (req) => {
             if (!info?.thumburl) continue;
             const sourceUrl = info.descriptionurl ?? `https://commons.wikimedia.org/wiki/${encodeURIComponent(page.title ?? "")}`;
             if (claimedThisRequest.has(sourceUrl)) continue;
+            // Reserve the source before the next await. Concurrent paragraph
+            // searches can otherwise all choose the same first result.
+            claimedThisRequest.add(sourceUrl);
 
             const imageResponse = await fetch(info.thumburl);
-            if (!imageResponse.ok) continue;
+            if (!imageResponse.ok) {
+              claimedThisRequest.delete(sourceUrl);
+              continue;
+            }
             const contentType = info.mime ?? imageResponse.headers.get("content-type") ?? "image/jpeg";
             const extension = contentType === "image/png" ? "png" : contentType === "image/webp" ? "webp" : "jpg";
             const safeId = articleId.replace(/[^a-zA-Z0-9_-]/g, "-");
@@ -184,7 +229,15 @@ Deno.serve(async (req) => {
               creator: image.creator,
               license: image.license,
             });
-            if (insertError) continue;
+            if (insertError) {
+              console.error("article image metadata insert failed", {
+                paragraphIndex: request.paragraphIndex,
+                sourceUrl,
+                message: insertError.message,
+              });
+              claimedThisRequest.delete(sourceUrl);
+              continue;
+            }
 
             const bytes = await imageResponse.arrayBuffer();
             const { error: uploadError } = await supabase.storage
@@ -196,15 +249,24 @@ Deno.serve(async (req) => {
                 .eq("article_id", articleId)
                 .eq("paragraph_index", image.paragraphIndex)
                 .eq("image_slot", image.imageSlot);
+              claimedThisRequest.delete(sourceUrl);
               continue;
             }
-            claimedThisRequest.add(sourceUrl);
-            saved = image;
-            break;
+            return image;
           }
-          if (saved) break;
         }
-        if (saved) stored.push(saved);
+        return null;
+      };
+
+      // Work in small parallel batches. Fully sequential searches time out on
+      // long articles, while sending every Wikimedia request simultaneously
+      // can be throttled and leave later paragraphs empty.
+      const missingRequests = requests.filter((request) => !stored.some((image) =>
+        image.paragraphIndex === request.paragraphIndex && image.imageSlot === request.imageSlot
+      ));
+      for (let index = 0; index < missingRequests.length; index += 2) {
+        const savedImages = await Promise.all(missingRequests.slice(index, index + 2).map(fillRequest));
+        stored.push(...savedImages.filter((image): image is StoredImage => image !== null));
       }
     }
 
