@@ -244,10 +244,16 @@ Deno.serve(async (req) => {
         return null;
       };
 
-      // Search missing paragraphs concurrently so long articles do not run out
-      // of function time before their later paragraphs receive pictures.
-      const savedImages = await Promise.all(requests.map(fillRequest));
-      stored.push(...savedImages.filter((image): image is StoredImage => image !== null));
+      // Work in small parallel batches. Fully sequential searches time out on
+      // long articles, while sending every Wikimedia request simultaneously
+      // can be throttled and leave later paragraphs empty.
+      const missingRequests = requests.filter((request) => !stored.some((image) =>
+        image.paragraphIndex === request.paragraphIndex && image.imageSlot === request.imageSlot
+      ));
+      for (let index = 0; index < missingRequests.length; index += 2) {
+        const savedImages = await Promise.all(missingRequests.slice(index, index + 2).map(fillRequest));
+        stored.push(...savedImages.filter((image): image is StoredImage => image !== null));
+      }
     }
 
     stored.sort((a, b) => a.paragraphIndex - b.paragraphIndex || a.imageSlot - b.imageSlot);
