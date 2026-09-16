@@ -1,29 +1,27 @@
-# Reading Mode paragraph pictures
+# Reading Mode picture coverage and business expansion
 
 ## Goal
-Show a relevant picture after every article paragraph, including a specially ordered set for the Boeing 747 article:
-1. The first Boeing 747 flight
-2. The Boeing factory
-3. A close-up photograph beside a 747
-4. The January 1970 Pan Am 747 arrival with nearby crowds
+Make every Reading Mode paragraph display at least one relevant picture, fix Deep Indian Kitchen’s incomplete and unrelated pictures, and add 200 new business stories with all three difficulty levels.
 
 ## What will change
-- Add picture loading to Reading Mode after the article text finishes loading.
-- Match one picture to each paragraph and place it directly beneath that paragraph.
-- Add a loading placeholder while pictures are being prepared and a quiet fallback when a picture cannot be found.
-- Cache picture choices so replaying an article loads the same pictures quickly.
-- Use authoritative, reusable historical photographs where available rather than generic illustrations.
-- Give the Boeing 747 article its requested four-picture sequence; other articles will receive searches based on their title and each paragraph’s subject.
+- Improve picture searches so they focus on the paragraph’s actual subject, named places, people, products, events, and dates rather than broad or random words.
+- Add stronger fallback searches for niche subjects, including food, restaurants, local businesses, and other topics with limited historical photographs.
+- Reject clearly unrelated search results before saving them.
+- Guarantee one picture slot per paragraph and allow a second picture where the paragraph covers two distinct visual subjects.
+- Replace Deep Indian Kitchen’s existing cached picture choices so its paragraphs receive fresh, relevant pictures.
+- Keep pictures unique across Reading Mode and preserve captions, credits, licenses, and source links.
+- Add exactly 200 distinct real businesses to History → Businesses; each source story will automatically appear as Easy, Hard, and Extra Hard, creating 600 selectable versions.
 
 ## Technical details
-- Add a backend function that searches Wikimedia Commons, validates reusable image files, copies them into app storage, and returns local image URLs with attribution details.
-- Add a database table for cached article-picture metadata, with read access for the app and server-only writes.
-- Add a public storage bucket for cached article pictures.
-- Extend the Reading Mode article view to render paragraphs and their pictures as a single ordered sequence, with stable image dimensions, descriptive alt text, captions, and source links.
-- Keep the book-report scoring and article text unchanged.
+- Extend the article-picture request with article topic and subtopic context.
+- Score Wikimedia Commons candidates against the article subject and paragraph keywords, and use ordered fallback queries when exact matches are scarce.
+- Add a controlled relevant-image fallback for paragraphs where Commons cannot supply an acceptable result, while retaining stable cached pictures.
+- Invalidate only the incorrect Deep Indian Kitchen picture cache; existing good picture assignments remain unchanged.
+- Add the 200 business records in a separate article data file and include it in the Reading Mode catalogue.
 
 ## Validation
-- Open the Boeing 747 article and confirm all four requested pictures appear in order after paragraphs one through four.
-- Open another article and confirm each paragraph receives a relevant picture.
-- Replay both articles and confirm cached pictures load without being searched again.
-- Check desktop and mobile layouts, missing-image behavior, and browser errors.
+- Open Deep Indian Kitchen at Easy, Hard, and Extra Hard and confirm every paragraph has at least one relevant picture.
+- Test several unrelated articles across History, Science, Geography, Sports, Animals, and Other for complete paragraph picture coverage.
+- Confirm no picture source is reused and that captions and credits remain visible.
+- Confirm History → Businesses has 200 additional titles and every new title appears at all three difficulty levels.
+- Check Reading Mode on desktop and mobile, including loading and missing-picture behavior.
